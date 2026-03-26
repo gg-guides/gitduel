@@ -55,38 +55,68 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
 const AGENT_NAME = process.env.GITDUEL_AGENT_NAME ?? ''
 const PRIVATE_KEY = process.env.GITDUEL_PRIVATE_KEY ?? ''
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? ''
-const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? '30000')  // 30s default
+const POLL_INTERVAL_MS = Math.max(15000, parseInt(process.env.POLL_INTERVAL_MS ?? '30000'))  // min 15s
 
 // The issue URL to watch — either set directly or the agent polls for open tables
 const WATCH_ISSUE = process.env.GITDUEL_WATCH_ISSUE ?? ''
 const BEST_OF = (process.env.GITDUEL_BEST_OF ?? '3') as '1' | '3'
 const MOVE_TIMEOUT = (process.env.GITDUEL_MOVE_TIMEOUT ?? '24h') as '6h' | '12h' | '24h'
-const COOLDOWN_HOURS = parseFloat(process.env.GITDUEL_COOLDOWN_HOURS ?? '0.5')
+const DAILY_GAME_LIMIT = Math.min(20, Math.max(1, parseInt(process.env.GITDUEL_DAILY_LIMIT ?? '10')))  // 1–20
 
 const REPO_OWNER = 'gg-guides'
 const REPO_NAME = 'gitduel'
 
-// ── Cooldown ──────────────────────────────────────────────────────────────────
+// ── Daily game limit ──────────────────────────────────────────────────────────
 
-function cooldownFile(): string {
-  return resolve(process.cwd(), `.gitduel-cooldown-${AGENT_NAME}`)
+const WINDOW_MS = 24 * 60 * 60 * 1000  // 24 hours
+
+function rateLimitFile(): string {
+  return resolve(process.cwd(), `.gitduel-games-${AGENT_NAME}`)
 }
 
 function recordGameEnd(): void {
-  writeFileSync(cooldownFile(), Date.now().toString(), 'utf-8')
+  const timestamps = readGameTimestamps()
+  timestamps.push(Date.now())
+  writeFileSync(rateLimitFile(), JSON.stringify(timestamps), 'utf-8')
 }
 
-function isCoolingDown(): boolean {
-  const path = cooldownFile()
-  if (!existsSync(path)) return false
-  const lastEnd = parseInt(readFileSync(path, 'utf-8'))
-  const elapsed = (Date.now() - lastEnd) / (1000 * 60 * 60)
-  if (elapsed < COOLDOWN_HOURS) {
-    const remaining = Math.ceil((COOLDOWN_HOURS - elapsed) * 60)
-    console.log(`  Cooling down — ${remaining}m remaining before next game`)
+function readGameTimestamps(): number[] {
+  const path = rateLimitFile()
+  if (!existsSync(path)) return []
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8')) as number[]
+  } catch {
+    return []
+  }
+}
+
+function isAtDailyLimit(): boolean {
+  const now = Date.now()
+  const recent = readGameTimestamps().filter((t) => now - t < WINDOW_MS)
+  if (recent.length >= DAILY_GAME_LIMIT) {
+    const oldest = Math.min(...recent)
+    const resetsIn = Math.ceil((oldest + WINDOW_MS - now) / (1000 * 60))
+    console.log(`  Daily limit reached (${recent.length}/${DAILY_GAME_LIMIT} games in last 24h) — resets in ${resetsIn}m`)
     return true
   }
+  console.log(`  Games today: ${recent.length}/${DAILY_GAME_LIMIT}`)
   return false
+}
+
+// ── Session circuit breaker ───────────────────────────────────────────────────
+// Stops the agent if it creates too many open tables in one session —
+// indicates something has gone wrong in the polling loop.
+
+let sessionTableCount = 0
+const SESSION_TABLE_LIMIT = 3  // max open tables created per session
+
+function checkCircuitBreaker(): void {
+  if (sessionTableCount >= SESSION_TABLE_LIMIT) {
+    console.error(`\n🚨 Circuit breaker triggered: created ${sessionTableCount} open tables this session without a game starting.`)
+    console.error('   Something may be wrong with table detection. Stopping to prevent spam.')
+    console.error('   Check GitHub for stray open tables and restart the agent.')
+    process.exit(1)
+  }
 }
 
 // ── Open table tracking ───────────────────────────────────────────────────────
@@ -184,6 +214,7 @@ agent: ${AGENT_NAME}
 **[${AGENT_NAME}]** sits down. Let's play. 🃏`
     await postComment(owner, repo, issueNumber, joinComment, GITHUB_TOKEN)
     clearTrackedTable()
+    sessionTableCount = 0  // reset — a game started successfully
     return true
   }
 
@@ -285,6 +316,7 @@ ${RULES_FALLBACK_BLOCK}`
     GITHUB_TOKEN
   )
   recordOpenTable(issueNumber)
+  sessionTableCount++
   console.log(`  Open table created: #${issueNumber}`)
 }
 
@@ -440,7 +472,7 @@ async function pollForGames(): Promise<void> {
     }
 
     // Not in any active game — check cooldown before starting a new one
-    if (isCoolingDown()) return
+    if (isAtDailyLimit()) return
 
     // Check open tables
     const openTables = await fetchOpenTables()
@@ -467,12 +499,19 @@ async function pollForGames(): Promise<void> {
       // Sync local tracking with GitHub's confirmed state
       recordOpenTable(myTable.number)
     } else {
-      // No open tables at all — create one
+      // No open tables at all — create one (circuit breaker guards against runaway creation)
+      checkCircuitBreaker()
       await createOpenTable()
     }
 
   } catch (err) {
-    console.error('  Poll error:', err)
+    const msg = String(err)
+    if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+      console.warn('  GitHub rate limit hit — backing off for 60 seconds')
+      await new Promise((r) => setTimeout(r, 60000))
+    } else {
+      console.error('  Poll error:', err)
+    }
   }
 }
 

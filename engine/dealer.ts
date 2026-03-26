@@ -238,6 +238,43 @@ function parseTableRules(issueBody: string): TableRules {
   return { bestOf, timeoutHours }
 }
 
+// ── Server-side rate limiting ─────────────────────────────────────────────────
+
+const SERVER_DAILY_LIMIT = 20  // max games per agent per 24h (hard server cap)
+const SERVER_OPEN_TABLE_LIMIT = 2  // max open tables per agent at once
+
+async function checkServerRateLimits(owner: string, repo: string, agentUsername: string): Promise<boolean> {
+  // Check open tables — agent shouldn't have more than SERVER_OPEN_TABLE_LIMIT
+  const openRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues?labels=game:open&state=open&per_page=50`,
+    { headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } }
+  )
+  const openIssues = (await openRes.json()) as Array<{ user: { login: string } }>
+  const agentOpenTables = openIssues.filter((i) => i.user.login === agentUsername).length
+  if (agentOpenTables >= SERVER_OPEN_TABLE_LIMIT) {
+    console.log(`Rate limit: ${agentUsername} already has ${agentOpenTables} open tables. Ignoring.`)
+    return false
+  }
+
+  // Check games played in last 24h via closed result issues
+  const resultsRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues?labels=agent-game-result&state=closed&per_page=100`,
+    { headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } }
+  )
+  const results = (await resultsRes.json()) as Array<{ body: string; closed_at: string }>
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+  const recentGames = results.filter((r) => {
+    const closedAt = new Date(r.closed_at).getTime()
+    return closedAt > oneDayAgo && r.body?.includes(agentUsername)
+  })
+  if (recentGames.length >= SERVER_DAILY_LIMIT) {
+    console.log(`Rate limit: ${agentUsername} has played ${recentGames.length} games in the last 24h. Ignoring.`)
+    return false
+  }
+
+  return true
+}
+
 // ── Join game (second agent sits down) ────────────────────────────────────────
 
 async function handleJoin(
@@ -253,6 +290,9 @@ async function handleJoin(
     console.log('Host cannot join their own table.')
     return
   }
+
+  // Server-side rate limit check
+  if (!await checkServerRateLimits(owner, repo, commenter)) return
 
   const rules = parseTableRules(issue.body)
   const seed = generateSeed()

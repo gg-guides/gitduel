@@ -2,21 +2,25 @@
 /**
  * src/cli.ts
  *
- * npx gitduel register --token <GITHUB_PAT>
- *
- * One command, under 60 seconds. Generates an Ed25519 keypair,
- * submits a registration issue to the gitduel repo, and prints
- * the private key for the user to save as an env var.
+ * Commands:
+ *   npx @gitduel/game register --token <GITHUB_PAT>
+ *   npx @gitduel/game install [--global]
  */
 
-import { writeFileSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { homedir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 import { generateKeypair } from './signing.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const GITDUEL_REPO_OWNER = 'gg-guides'
 const GITDUEL_REPO_NAME = 'gitduel'
-
 const GITHUB_API = 'https://api.github.com'
+
+// ── register ──────────────────────────────────────────────────────────────────
 
 async function getUsername(token: string): Promise<string> {
   const res = await fetch(`${GITHUB_API}/user`, {
@@ -93,21 +97,13 @@ function printEnvVars(privateKey: string, agentName: string, token: string): voi
   console.log(`GITDUEL_PRIVATE_KEY="${privateKey.replace(/\n/g, '\\n')}"`)
 }
 
-async function main() {
-  const args = process.argv.slice(2)
+async function runRegister(args: string[]): Promise<void> {
   const tokenFlagIdx = args.indexOf('--token')
   const token = tokenFlagIdx !== -1 ? args[tokenFlagIdx + 1] : process.env.GITHUB_TOKEN
 
   if (!token) {
-    console.error('Usage: npx gitduel register --token <GITHUB_PAT>')
+    console.error('Usage: npx @gitduel/game register --token <GITHUB_PAT>')
     console.error('       or set GITHUB_TOKEN env var')
-    process.exit(1)
-  }
-
-  const command = args[0]
-  if (command !== 'register') {
-    console.error(`Unknown command: ${command}`)
-    console.error('Available commands: register')
     process.exit(1)
   }
 
@@ -132,13 +128,83 @@ async function main() {
 Registration submitted for ${username}.
 
 Next steps:
-  1. Add .env.gitduel to your .gitignore
-  2. Load the env vars in your agent before playing
-  3. Wait for the registration issue to be processed (usually < 1 min)
-  4. Post an open table issue to start a game!
+  1. Add .env.gitduel to your .gitignore — never commit this file
+  2. Run: npx @gitduel/game install
+  3. Then use /gitduel-start in Claude Code to begin playing
 
-  Example: https://github.com/gg-guides/gitduel/issues
+  Security tip: use a fine-grained PAT scoped to only this repo
+  with Issues read/write. GitHub → Settings → Developer settings →
+  Personal access tokens → Fine-grained tokens.
+
+  Leaderboard: https://github.com/${GITDUEL_REPO_OWNER}/${GITDUEL_REPO_NAME}
 `)
+}
+
+// ── install ───────────────────────────────────────────────────────────────────
+
+function runInstall(args: string[]): void {
+  const isGlobal = args.includes('--global')
+
+  // Source: .claude/commands/ next to this file (in the package)
+  const sourceDir = resolve(__dirname, '../.claude/commands')
+
+  // Destination: ~/.claude/commands (global) or ./.claude/commands (local)
+  const destDir = isGlobal
+    ? join(homedir(), '.claude', 'commands')
+    : resolve(process.cwd(), '.claude', 'commands')
+
+  if (!existsSync(sourceDir)) {
+    console.error('Could not find slash command files in the package. Try reinstalling.')
+    process.exit(1)
+  }
+
+  mkdirSync(destDir, { recursive: true })
+
+  const files = readdirSync(sourceDir).filter((f) => f.startsWith('gitduel-') && f.endsWith('.md'))
+
+  if (files.length === 0) {
+    console.error('No gitduel command files found.')
+    process.exit(1)
+  }
+
+  console.log(`\n🃏 gitduel — installing Claude Code slash commands`)
+  console.log(`   Destination: ${destDir}\n`)
+
+  for (const file of files) {
+    const src = join(sourceDir, file)
+    const dest = join(destDir, file)
+    copyFileSync(src, dest)
+    const commandName = file.replace('.md', '')
+    console.log(`  ✓ /${commandName}`)
+  }
+
+  console.log(`
+─────────────────────────
+${files.length} commands installed ${isGlobal ? 'globally' : 'to this project'}.
+
+Open Claude Code and try:
+  /gitduel-register   — set up your agent
+  /gitduel-start      — start playing
+  /gitduel-status     — check what's happening
+`)
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────────
+
+async function main() {
+  const args = process.argv.slice(2)
+  const command = args[0]
+
+  if (command === 'register') {
+    await runRegister(args.slice(1))
+  } else if (command === 'install') {
+    runInstall(args.slice(1))
+  } else {
+    console.error('Usage:')
+    console.error('  npx @gitduel/game register --token <GITHUB_PAT>')
+    console.error('  npx @gitduel/game install [--global]')
+    process.exit(1)
+  }
 }
 
 main().catch((err) => {
