@@ -12,7 +12,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -59,9 +59,33 @@ const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? '30000')  // 3
 const WATCH_ISSUE = process.env.GITDUEL_WATCH_ISSUE ?? ''
 const BEST_OF = (process.env.GITDUEL_BEST_OF ?? '3') as '1' | '3'
 const MOVE_TIMEOUT = (process.env.GITDUEL_MOVE_TIMEOUT ?? '24h') as '6h' | '12h' | '24h'
+const COOLDOWN_HOURS = parseFloat(process.env.GITDUEL_COOLDOWN_HOURS ?? '1')
 
 const REPO_OWNER = 'gg-guides'
 const REPO_NAME = 'gitduel'
+
+// ── Cooldown ──────────────────────────────────────────────────────────────────
+
+function cooldownFile(): string {
+  return resolve(process.cwd(), `.gitduel-cooldown-${AGENT_NAME}`)
+}
+
+function recordGameEnd(): void {
+  writeFileSync(cooldownFile(), Date.now().toString(), 'utf-8')
+}
+
+function isCoolingDown(): boolean {
+  const path = cooldownFile()
+  if (!existsSync(path)) return false
+  const lastEnd = parseInt(readFileSync(path, 'utf-8'))
+  const elapsed = (Date.now() - lastEnd) / (1000 * 60 * 60)
+  if (elapsed < COOLDOWN_HOURS) {
+    const remaining = Math.ceil((COOLDOWN_HOURS - elapsed) * 60)
+    console.log(`  Cooling down — ${remaining}m remaining before next game`)
+    return true
+  }
+  return false
+}
 
 // ── Decision making ───────────────────────────────────────────────────────────
 
@@ -205,6 +229,7 @@ agent: ${AGENT_NAME}
 
   await postComment(owner, repo, issueNumber, comment, GITHUB_TOKEN)
   console.log(`  Posted: ${action}`)
+  recordGameEnd()
 }
 
 async function createOpenTable(): Promise<void> {
@@ -263,54 +288,138 @@ async function hasOpenTable(): Promise<boolean> {
   return issues.some((i) => i.user.login === AGENT_NAME)
 }
 
+interface OpenTable {
+  number: number
+  host: string
+  createdAt: string
+  body: string
+}
+
+async function fetchOpenTables(): Promise<OpenTable[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:open&state=open&per_page=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    }
+  )
+  const issues = (await res.json()) as Array<{
+    number: number
+    user: { login: string }
+    created_at: string
+    body: string
+  }>
+  return issues.map((i) => ({
+    number: i.number,
+    host: i.user.login,
+    createdAt: i.created_at,
+    body: i.body,
+  }))
+}
+
+async function selectTable(tables: OpenTable[]): Promise<OpenTable | null> {
+  // Filter out our own tables
+  const joinable = tables.filter((t) => t.host !== AGENT_NAME)
+  if (joinable.length === 0) return null
+
+  if (joinable.length === 1) return joinable[0]
+
+  // Ask Claude to pick — pass all options with context
+  const tableList = joinable
+    .map((t, i) => {
+      const waitMins = Math.round((Date.now() - new Date(t.createdAt).getTime()) / 60000)
+      return `${i + 1}. Host: ${t.host} — waiting ${waitMins} minutes (issue #${t.number})`
+    })
+    .join('\n')
+
+  const prompt = `You are a card game agent choosing which open table to join.
+
+Available tables:
+${tableList}
+
+Guidelines:
+- Prefer the table that has been waiting longest (fairness)
+- Avoid rematching the same opponent back to back if possible
+- Your last opponent (if any) can be inferred from recent history
+
+Respond with only the table number (1, 2, 3, etc).`
+
+  let choice: string
+  try {
+    if (ANTHROPIC_API_KEY) {
+      const { default: Anthropic } = await import('@anthropic-ai/sdk')
+      const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
+      const msg = await client.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      choice = (msg.content[0] as { text: string }).text.trim()
+    } else {
+      const escaped = prompt.replace(/'/g, `'\\''`)
+      choice = execSync(`claude -p '${escaped}'`, { encoding: 'utf-8', timeout: 30000 }).trim()
+    }
+  } catch {
+    // Fall back to longest-waiting table
+    choice = '1'
+  }
+
+  const idx = parseInt(choice) - 1
+  return joinable[idx] ?? joinable[0]
+}
+
 async function pollForGames(): Promise<void> {
   console.log(`Polling ${REPO_OWNER}/${REPO_NAME} for games...`)
 
   try {
-    // Fetch open and in-progress games
-    const [openRes, inProgressRes] = await Promise.all([
-      fetch(
-        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:open&state=open&per_page=20`,
-        {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
-        }
-      ),
-      fetch(
-        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=20`,
-        {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
-        }
-      ),
-    ])
+    // Check cooldown first
+    if (isCoolingDown()) return
 
-    const openIssues = (await openRes.json()) as Array<{ number: number }>
-    const inProgressIssues = (await inProgressRes.json()) as Array<{ number: number }>
-    const allIssues = [...openIssues, ...inProgressIssues]
-
-    if (allIssues.length === 0) {
-      // No games at all — create an open table if not already in one
-      const inGame = await isInActiveGame()
-      const alreadyWaiting = await hasOpenTable()
-      if (!inGame && !alreadyWaiting) {
-        await createOpenTable()
-      } else {
-        console.log('  No active games found — waiting.')
+    // Fetch in-progress games we're part of
+    const inProgressRes = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=20`,
+      {
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
       }
-      return
-    }
+    )
+    const inProgressIssues = (await inProgressRes.json()) as Array<{ number: number; body: string }>
+    const myGames = inProgressIssues.filter((i) => i.body?.includes(AGENT_NAME))
 
-    for (const issue of allIssues) {
-      console.log(`  Checking issue #${issue.number}...`)
+    // Process active games first
+    for (const issue of myGames) {
+      console.log(`  Checking in-progress game #${issue.number}...`)
       await processIssue(REPO_OWNER, REPO_NAME, issue.number)
     }
+
+    if (myGames.length > 0) return
+
+    // No active game — look at open tables
+    const openTables = await fetchOpenTables()
+    const joinableTables = openTables.filter((t) => t.host !== AGENT_NAME)
+    const myTable = openTables.find((t) => t.host === AGENT_NAME)
+
+    if (joinableTables.length > 0 && !myTable) {
+      // Choose which table to join
+      console.log(`  ${joinableTables.length} open table(s) available — selecting...`)
+      const selected = await selectTable(openTables)
+      if (selected) {
+        console.log(`  Joining table #${selected.number} (hosted by ${selected.host})`)
+        await processIssue(REPO_OWNER, REPO_NAME, selected.number)
+      }
+    } else if (!myTable) {
+      // No open tables and not in a game — create one
+      await createOpenTable()
+    } else {
+      console.log(`  Waiting at table #${myTable.number} for an opponent...`)
+    }
+
   } catch (err) {
     console.error('  Poll error:', err)
   }

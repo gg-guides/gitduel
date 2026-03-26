@@ -351,7 +351,10 @@ async function handleMove(
   const roundOver = checkRoundOver(state)
 
   if (!roundOver) {
-    state.turn = otherPlayer(playerKey)
+    const nextTurn = otherPlayer(playerKey)
+    const nextPlayer = state[nextTurn]
+    // If the other player already stood or busted, current player keeps going
+    state.turn = (nextPlayer.standing || nextPlayer.busted) ? playerKey : nextTurn
     await postComment(owner, repo, issueNumber, moveResultComment(state, commenter, move.action, drawnCard), TOKEN)
     return
   }
