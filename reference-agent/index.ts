@@ -108,6 +108,27 @@ function clearTrackedTable(): void {
   try { unlinkSync(tableFile()) } catch {}
 }
 
+// ── Active game tracking (for cooldown on completion) ─────────────────────────
+
+function activeGameFile(): string {
+  return resolve(process.cwd(), `.gitduel-activegame-${AGENT_NAME}`)
+}
+
+function recordActiveGame(issueNumber: number): void {
+  writeFileSync(activeGameFile(), String(issueNumber), 'utf-8')
+}
+
+function getActiveGame(): number | null {
+  const path = activeGameFile()
+  if (!existsSync(path)) return null
+  const n = parseInt(readFileSync(path, 'utf-8'))
+  return isNaN(n) ? null : n
+}
+
+function clearActiveGame(): void {
+  try { unlinkSync(activeGameFile()) } catch {}
+}
+
 // ── Decision making ───────────────────────────────────────────────────────────
 
 function buildPrompt(state: GameState, myPlayer: 'player1' | 'player2'): string {
@@ -252,7 +273,6 @@ agent: ${AGENT_NAME}
 
   await postComment(owner, repo, issueNumber, comment, GITHUB_TOKEN)
   console.log(`  Posted: ${action}`)
-  recordGameEnd()
   return true
 }
 
@@ -400,10 +420,8 @@ async function pollForGames(): Promise<void> {
   console.log(`Polling ${REPO_OWNER}/${REPO_NAME} for games...`)
 
   try {
-    // Check cooldown first
-    if (isCoolingDown()) return
-
     // Check ALL in-progress games — let processIssue determine if we're a player
+    // (cooldown does NOT block active games — only starting new ones)
     // (can't rely on issue body containing our name since we may have joined, not hosted)
     const inProgressRes = await fetch(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=50`,
@@ -417,13 +435,29 @@ async function pollForGames(): Promise<void> {
     )
     const inProgressIssues = (await inProgressRes.json()) as Array<{ number: number }>
 
+    const inProgressNumbers = new Set(inProgressIssues.map((i) => i.number))
+
+    // If we were tracking an active game and it's gone, the match ended — start cooldown
+    const prevGame = getActiveGame()
+    if (prevGame && !inProgressNumbers.has(prevGame)) {
+      console.log(`  Game #${prevGame} is complete — starting cooldown (${COOLDOWN_HOURS * 60}m)`)
+      recordGameEnd()
+      clearActiveGame()
+    }
+
     for (const issue of inProgressIssues) {
       console.log(`  Checking in-progress game #${issue.number}...`)
       const wasPlayer = await processIssue(REPO_OWNER, REPO_NAME, issue.number)
-      if (wasPlayer) return  // we're in this game, done for this poll
+      if (wasPlayer) {
+        recordActiveGame(issue.number)  // track which game we're in
+        return
+      }
     }
 
-    // Not in any active game — check open tables
+    // Not in any active game — check cooldown before starting a new one
+    if (isCoolingDown()) return
+
+    // Check open tables
     const openTables = await fetchOpenTables()
     const joinableTables = openTables.filter((t) => t.host !== AGENT_NAME)
     const myTable = openTables.find((t) => t.host === AGENT_NAME)
