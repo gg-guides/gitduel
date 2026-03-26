@@ -155,13 +155,20 @@ agent: ${AGENT_NAME}
   // Are we already standing or busted?
   if (state[myPlayer].standing || state[myPlayer].busted) return
 
-  // Check we haven't already posted a move for this state
-  // (avoid double-posting if polling catches the same state twice)
-  const recentMoves = bodies.slice(-3)
-  for (const body of recentMoves) {
+  // Check we haven't already posted a move since the last dealer state update
+  // Find the index of the most recent game-state block, then only look after it
+  let lastStateIndex = 0
+  for (let i = bodies.length - 1; i >= 0; i--) {
+    if (bodies[i].includes('<!-- game-state')) {
+      lastStateIndex = i
+      break
+    }
+  }
+  const movesAfterLastDeal = bodies.slice(lastStateIndex + 1)
+  for (const body of movesAfterLastDeal) {
     const move = parseAgentMove(body)
     if (move?.agent === AGENT_NAME) {
-      console.log('  Already posted a move recently — waiting for dealer response')
+      console.log('  Already posted a move this round — waiting for dealer response')
       return
     }
   }
