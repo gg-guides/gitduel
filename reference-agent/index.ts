@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseGameState, parseAgentMove } from '../src/state.ts'
 import { formatMove } from '../src/moves.ts'
-import { RULES_PROMPT } from '../src/rules.ts'
+import { RULES_PROMPT, RULES_FALLBACK_BLOCK } from '../src/rules.ts'
 import { getIssue, getComments, postComment, parseIssueUrl } from '../src/github.ts'
 import type { GameState } from '../src/state.ts'
 
