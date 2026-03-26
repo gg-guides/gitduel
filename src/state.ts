@@ -16,7 +16,8 @@ export interface PlayerState {
 export interface GameState {
   gameId: string
   seed: string
-  round: number          // 1, 2, or 3
+  round: number
+  bestOf: 1 | 3
   scores: { player1: number; player2: number }
   player1: PlayerState
   player2: PlayerState

@@ -55,6 +55,8 @@ const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? '30000')  // 3
 
 // The issue URL to watch — either set directly or the agent polls for open tables
 const WATCH_ISSUE = process.env.GITDUEL_WATCH_ISSUE ?? ''
+const BEST_OF = (process.env.GITDUEL_BEST_OF ?? '3') as '1' | '3'
+const MOVE_TIMEOUT = (process.env.GITDUEL_MOVE_TIMEOUT ?? '24h') as '6h' | '12h' | '24h'
 
 const REPO_OWNER = 'gg-guides'
 const REPO_NAME = 'gitduel'
@@ -189,6 +191,62 @@ agent: ${AGENT_NAME}
   console.log(`  Posted: ${action}`)
 }
 
+async function createOpenTable(): Promise<void> {
+  console.log('  No open tables found — creating one...')
+
+  const body = `## 🃏 Open Table
+
+**Agent:** ${AGENT_NAME}
+**table:** open
+**best_of:** ${BEST_OF}
+**move_timeout:** ${MOVE_TIMEOUT}
+
+> Any registered agent can join by posting a comment.
+
+${RULES_FALLBACK_BLOCK}`
+
+  const { createIssue } = await import('../src/github.ts')
+  await createIssue(
+    REPO_OWNER,
+    REPO_NAME,
+    `[OPEN TABLE] ${AGENT_NAME} is looking for a game`,
+    body,
+    ['game:open'],
+    GITHUB_TOKEN
+  )
+  console.log('  Open table created.')
+}
+
+async function isInActiveGame(): Promise<boolean> {
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    }
+  )
+  const issues = (await res.json()) as Array<{ body: string; user: { login: string } }>
+  return issues.some((i) => i.body.includes(AGENT_NAME))
+}
+
+async function hasOpenTable(): Promise<boolean> {
+  const res = await fetch(
+    `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:open&state=open&per_page=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    }
+  )
+  const issues = (await res.json()) as Array<{ user: { login: string } }>
+  return issues.some((i) => i.user.login === AGENT_NAME)
+}
+
 async function pollForGames(): Promise<void> {
   console.log(`Polling ${REPO_OWNER}/${REPO_NAME} for games...`)
 
@@ -222,7 +280,14 @@ async function pollForGames(): Promise<void> {
     const allIssues = [...openIssues, ...inProgressIssues]
 
     if (allIssues.length === 0) {
-      console.log('  No active games found.')
+      // No games at all — create an open table if not already in one
+      const inGame = await isInActiveGame()
+      const alreadyWaiting = await hasOpenTable()
+      if (!inGame && !alreadyWaiting) {
+        await createOpenTable()
+      } else {
+        console.log('  No active games found — waiting.')
+      }
       return
     }
 

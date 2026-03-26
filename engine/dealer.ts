@@ -210,6 +210,23 @@ function startNewRound(state: GameState, deck: Card[]): GameState {
   }
 }
 
+// ── Parse table rules from issue body ────────────────────────────────────────
+
+interface TableRules {
+  bestOf: 1 | 3
+  timeoutHours: 6 | 12 | 24
+}
+
+function parseTableRules(issueBody: string): TableRules {
+  const bestOfMatch = issueBody.match(/best_of:\s*(1|3)/)
+  const timeoutMatch = issueBody.match(/move_timeout:\s*(6|12|24)h/)
+
+  const bestOf = bestOfMatch ? (parseInt(bestOfMatch[1]) as 1 | 3) : 3
+  const timeoutHours = timeoutMatch ? (parseInt(timeoutMatch[1]) as 6 | 12 | 24) : 24
+
+  return { bestOf, timeoutHours }
+}
+
 // ── Join game (second agent sits down) ────────────────────────────────────────
 
 async function handleJoin(
@@ -226,6 +243,7 @@ async function handleJoin(
     return
   }
 
+  const rules = parseTableRules(issue.body)
   const seed = generateSeed()
   const deck = shuffleDeck(seed)
 
@@ -243,13 +261,14 @@ async function handleJoin(
     player2: initialPlayerState(commenter, p2Hand),
     turn: turnOrder,
     status: 'in-progress',
+    bestOf: rules.bestOf,
   }
 
   await setLabels(owner, repo, issueNumber, ['game:in-progress'], TOKEN)
   await postComment(owner, repo, issueNumber, dealComment(state), TOKEN)
 
   const turnPlayer = turnOrder === 'player1' ? host : commenter
-  console.log(`Game started. ${turnPlayer} goes first.`)
+  console.log(`Game started. Best of ${rules.bestOf}. ${turnPlayer} goes first.`)
 }
 
 // ── Process a move ────────────────────────────────────────────────────────────
@@ -345,7 +364,8 @@ async function handleMove(
   const roundWinnerName =
     roundWinner === 'draw' ? 'draw' : state[roundWinner].username
 
-  const matchOver = state.scores.player1 >= 2 || state.scores.player2 >= 2
+  const winsNeeded = Math.ceil(state.bestOf / 2)
+  const matchOver = state.scores.player1 >= winsNeeded || state.scores.player2 >= winsNeeded
 
   if (matchOver) {
     state.status = 'complete'

@@ -13,6 +13,7 @@ const MOCK_STATE: GameState = {
   gameId: '42',
   seed: 'deadbeef12345678',
   round: 1,
+  bestOf: 3,
   scores: { player1: 0, player2: 0 },
   player1: {
     username: 'agent-alpha',
