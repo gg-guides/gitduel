@@ -119,25 +119,11 @@ function checkCircuitBreaker(): void {
   }
 }
 
-// ── Open table tracking ───────────────────────────────────────────────────────
-
-function tableFile(): string {
-  return resolve(process.cwd(), `.gitduel-opentable-${AGENT_NAME}`)
-}
-
-function recordOpenTable(issueNumber: number): void {
-  writeFileSync(tableFile(), String(issueNumber), 'utf-8')
-}
-
-function getTrackedTable(): number | null {
-  const path = tableFile()
-  if (!existsSync(path)) return null
-  const n = parseInt(readFileSync(path, 'utf-8'))
-  return isNaN(n) ? null : n
-}
+// ── Open table tracking (cleared — rely on GitHub API directly) ───────────────
 
 function clearTrackedTable(): void {
-  try { unlinkSync(tableFile()) } catch {}
+  // Remove any stale local tracking files from previous versions
+  try { unlinkSync(resolve(process.cwd(), `.gitduel-opentable-${AGENT_NAME}`)) } catch {}
 }
 
 // ── Active game tracking (for cooldown on completion) ─────────────────────────
@@ -315,7 +301,6 @@ ${RULES_FALLBACK_BLOCK}`
     ['game:open'],
     GITHUB_TOKEN
   )
-  recordOpenTable(issueNumber)
   sessionTableCount++
   console.log(`  Open table created: #${issueNumber}`)
 }
@@ -479,12 +464,8 @@ async function pollForGames(): Promise<void> {
     const joinableTables = openTables.filter((t) => t.host !== AGENT_NAME)
     const myTable = openTables.find((t) => t.host === AGENT_NAME)
 
-    // Also check local tracking in case GitHub API is slow to reflect new issue
-    const trackedTableNumber = getTrackedTable()
-    if (trackedTableNumber && !myTable) {
-      console.log(`  Waiting at locally-tracked table #${trackedTableNumber} for an opponent...`)
-      return
-    }
+    // Clear any stale local tracking files from previous versions
+    clearTrackedTable()
 
     if (joinableTables.length > 0) {
       // Choose which table to join
@@ -496,16 +477,22 @@ async function pollForGames(): Promise<void> {
           console.log(`  Closing our own table #${myTable.number} to join #${selected.number}...`)
           const { closeIssue } = await import('../src/github.ts')
           await closeIssue(REPO_OWNER, REPO_NAME, myTable.number, GITHUB_TOKEN)
-          clearTrackedTable()
         }
         console.log(`  Joining table #${selected.number} (hosted by ${selected.host})`)
         await processIssue(REPO_OWNER, REPO_NAME, selected.number)
       }
     } else if (myTable) {
       console.log(`  Waiting at table #${myTable.number} for an opponent...`)
-      // Sync local tracking with GitHub's confirmed state
-      recordOpenTable(myTable.number)
     } else {
+      // Final check before creating — re-fetch to catch any tables created since we last looked
+      const freshTables = await fetchOpenTables()
+      const freshJoinable = freshTables.filter((t) => t.host !== AGENT_NAME)
+      if (freshJoinable.length > 0) {
+        console.log(`  Found new table on recheck — joining instead of creating...`)
+        const selected = await selectTable(freshTables)
+        if (selected) await processIssue(REPO_OWNER, REPO_NAME, selected.number)
+        return
+      }
       // No open tables at all — create one (circuit breaker guards against runaway creation)
       checkCircuitBreaker()
       await createOpenTable()
@@ -543,6 +530,11 @@ async function main() {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
     }
   } else {
+    // Random startup delay (0–30s) so two agents starting simultaneously don't both create tables
+    const startDelay = Math.floor(Math.random() * 30000)
+    console.log(`  Starting in ${Math.round(startDelay / 1000)}s...\n`)
+    await new Promise((r) => setTimeout(r, startDelay))
+
     // Poll the repo for all open/in-progress games
     while (true) {
       await pollForGames()

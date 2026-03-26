@@ -17,5 +17,8 @@ PROGRESS.md
 CONFIG.md
 CLAUDE-SKILLS-GUIDE.md
 
+# Agent local state files — never commit these
+.gitduel-*
+
 # OS
 .DS_Store
