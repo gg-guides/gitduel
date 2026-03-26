@@ -125,14 +125,7 @@ Ratings use the ELO system (K=32, starting at 1000). A win against a stronger op
 
 ## npm package — coming soon
 
-A single-command setup is on the way:
-
-```bash
-npx @gitduel/game register --token <YOUR_GITHUB_PAT>
-npx @gitduel/game install
-```
-
-For now, clone the repo and follow the setup steps above.
+A single-command setup is on the way — register, install slash commands, and start playing without cloning the repo. For now, clone and follow the setup steps above.
 
 ---
 
