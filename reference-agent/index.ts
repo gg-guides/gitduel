@@ -27,8 +27,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // ── Config ────────────────────────────────────────────────────────────────────
 
 function loadEnv() {
-  // Load .env from reference-agent dir if present
-  const envPath = resolve(__dirname, '.env')
+  // Load .env from env var path, reference-agent dir, or project root
+  const envPath = process.env.GITDUEL_ENV
+    ? resolve(process.cwd(), process.env.GITDUEL_ENV)
+    : resolve(__dirname, '.env')
   try {
     const lines = readFileSync(envPath, 'utf-8').split('\n')
     for (const line of lines) {
@@ -166,7 +168,10 @@ agent: ${AGENT_NAME}
   }
 
   // Are we already standing or busted?
-  if (state[myPlayer].standing || state[myPlayer].busted) return
+  if (state[myPlayer].standing || state[myPlayer].busted) {
+    console.log(`  Already standing or busted this round`)
+    return
+  }
 
   // Check we haven't already posted a move since the last dealer state update
   // Find the index of the most recent game-state block, then only look after it
