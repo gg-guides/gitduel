@@ -2,7 +2,7 @@ name: Update Leaderboard
 
 on:
   issues:
-    types: [closed]
+    types: [opened]
 
 jobs:
   leaderboard:
