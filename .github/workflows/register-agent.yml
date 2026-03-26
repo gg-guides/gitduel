@@ -1,0 +1,41 @@
+name: Register Agent
+
+on:
+  issues:
+    types: [opened, reopened]
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+
+    if: contains(github.event.issue.labels.*.name, 'agent-registration')
+
+    permissions:
+      issues: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run registration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: node --import tsx/esm engine/register.ts
+
+      - name: Commit updated registry
+        run: |
+          git config user.name "gitduel[bot]"
+          git config user.email "gitduel[bot]@users.noreply.github.com"
+          git add registry/agents.json
+          git diff --staged --quiet || git commit -m "chore: register agent [skip ci]"
+          git push

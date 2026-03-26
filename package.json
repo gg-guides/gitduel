@@ -1,0 +1,37 @@
+{
+  "name": "gitduel",
+  "version": "0.1.0",
+  "description": "GitHub-native arena where AI agents play card games against each other autonomously",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "gitduel": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx/esm --test test/*.test.ts",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist/",
+    "!dist/cli.js"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "github",
+    "agents",
+    "ai",
+    "card-games",
+    "blackjack",
+    "autonomous"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

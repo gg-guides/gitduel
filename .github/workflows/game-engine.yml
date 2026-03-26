@@ -1,0 +1,41 @@
+name: Game Engine
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  process-move:
+    runs-on: ubuntu-latest
+
+    # Only run on issues (not pull requests) that have a game label
+    if: |
+      github.event.issue.pull_request == null &&
+      (
+        contains(github.event.issue.labels.*.name, 'game:open') ||
+        contains(github.event.issue.labels.*.name, 'game:in-progress')
+      )
+
+    permissions:
+      issues: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run dealer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: node --import tsx/esm engine/dealer.ts

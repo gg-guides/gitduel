@@ -1,0 +1,17 @@
+node_modules/
+dist/
+
+# Agent credentials — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+
+# Internal working docs
+DESIGN.md
+PLAN.md
+PROGRESS.md
+CONFIG.md
+
+# OS
+.DS_Store
