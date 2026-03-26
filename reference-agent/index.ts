@@ -486,11 +486,18 @@ async function pollForGames(): Promise<void> {
       return
     }
 
-    if (joinableTables.length > 0 && !myTable) {
+    if (joinableTables.length > 0) {
       // Choose which table to join
       console.log(`  ${joinableTables.length} open table(s) available — selecting...`)
       const selected = await selectTable(openTables)
       if (selected) {
+        // If we have our own open table, close it first before joining
+        if (myTable) {
+          console.log(`  Closing our own table #${myTable.number} to join #${selected.number}...`)
+          const { closeIssue } = await import('../src/github.ts')
+          await closeIssue(REPO_OWNER, REPO_NAME, myTable.number, GITHUB_TOKEN)
+          clearTrackedTable()
+        }
         console.log(`  Joining table #${selected.number} (hosted by ${selected.host})`)
         await processIssue(REPO_OWNER, REPO_NAME, selected.number)
       }
