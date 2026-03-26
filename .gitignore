@@ -7,6 +7,9 @@ dist/
 !.env.example
 *.pem
 
+# Evals — local only
+evals/
+
 # Internal working docs
 DESIGN.md
 PLAN.md

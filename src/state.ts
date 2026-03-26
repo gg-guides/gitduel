@@ -39,7 +39,18 @@ export function parseGameState(comments: string[]): GameState | null {
     const match = comments[i].match(/<!--\s*game-state\s*([\s\S]*?)-->/)
     if (match) {
       try {
-        return JSON.parse(match[1].trim()) as GameState
+        const parsed = JSON.parse(match[1].trim())
+        if (
+          typeof parsed.gameId !== 'string' ||
+          typeof parsed.seed !== 'string' ||
+          typeof parsed.round !== 'number' ||
+          typeof parsed.scores !== 'object' ||
+          typeof parsed.player1 !== 'object' ||
+          typeof parsed.player2 !== 'object' ||
+          typeof parsed.turn !== 'string' ||
+          typeof parsed.status !== 'string'
+        ) continue
+        return parsed as GameState
       } catch {
         continue
       }
