@@ -360,7 +360,7 @@ async function handleMove(
     await postComment(owner, repo, issueNumber, matchOverComment(state), TOKEN)
     await setLabels(owner, repo, issueNumber, ['game:complete'], TOKEN)
     await closeIssue(owner, repo, issueNumber, TOKEN)
-    await createIssue(
+    const resultIssueNumber = await createIssue(
       REPO_OWNER,
       REPO_NAME,
       `Result: ${state.player1.username} vs ${state.player2.username} — Game #${state.gameId}`,
@@ -368,6 +368,7 @@ async function handleMove(
       ['agent-game-result'],
       TOKEN
     )
+    await closeIssue(REPO_OWNER, REPO_NAME, resultIssueNumber, TOKEN)
     console.log('Match complete.')
     return
   }
