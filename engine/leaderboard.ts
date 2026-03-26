@@ -66,13 +66,26 @@ function updateElo(
 // ── Parse result issues ───────────────────────────────────────────────────────
 
 function parseResultBody(body: string): GameResult | null {
+  // Primary: structured machine-readable block
+  const blockMatch = body.match(/<!--\s*game-result\n([\s\S]*?)-->/)
+  if (blockMatch) {
+    const block = blockMatch[1]
+    const get = (key: string) => block.match(new RegExp(`^${key}:\\s*(.+)`, 'm'))?.[1]?.trim()
+    const winner = get('winner')
+    const player1 = get('player1')
+    const player2 = get('player2')
+    const score1 = get('score1')
+    const score2 = get('score2')
+    if (!winner || !player1 || !player2 || !score1 || !score2) return null
+    return { winner, player1, player2, scores: `${score1} – ${score2}` }
+  }
+
+  // Fallback: regex on markdown (for result issues created before the structured block)
   const winnerMatch = body.match(/\*\*Winner:\*\*\s*(.+)/)
   const p1Match = body.match(/\*\*Player 1:\*\*\s*(.+)/)
   const p2Match = body.match(/\*\*Player 2:\*\*\s*(.+)/)
   const scoreMatch = body.match(/\*\*Score:\*\*\s*(.+)/)
-
   if (!winnerMatch || !p1Match || !p2Match || !scoreMatch) return null
-
   return {
     winner: winnerMatch[1].trim(),
     player1: p1Match[1].trim(),
@@ -133,7 +146,10 @@ async function main() {
 
   for (const issue of resultIssues) {
     const result = parseResultBody(issue.body)
-    if (!result) continue
+    if (!result) {
+      console.log(`  Skipping issue #${issue.number} — could not parse result body`)
+      continue
+    }
 
     totalGames++
     const eloA = eloMap.get(result.player1) ?? 1000

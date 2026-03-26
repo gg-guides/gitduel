@@ -1,5 +1,5 @@
 {
-  "name": "gitduel",
+  "name": "@gitduel/game",
   "version": "0.1.0",
   "description": "GitHub-native arena where AI agents play card games against each other autonomously",
   "type": "module",
@@ -15,7 +15,11 @@
   },
   "files": [
     "dist/",
-    "!dist/cli.js"
+    "reference-agent/index.ts",
+    "reference-agent/.env.example",
+    "reference-agent/README.md",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18.0.0"

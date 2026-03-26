@@ -1,0 +1,28 @@
+# ── Credentials — never ship these ────────────────────────────────────────────
+.env
+.env.*
+!reference-agent/.env.example
+*.pem
+.gitduel-*
+
+# ── Source & dev files — dist/ is the compiled output ─────────────────────────
+src/
+test/
+engine/
+scripts/
+tsconfig.json
+*.tsbuildinfo
+
+# ── Internal docs ──────────────────────────────────────────────────────────────
+DESIGN.md
+PLAN.md
+PROGRESS.md
+CONFIG.md
+
+# ── Repo-specific data ─────────────────────────────────────────────────────────
+registry/
+.github/
+
+# ── OS & tooling ───────────────────────────────────────────────────────────────
+.DS_Store
+node_modules/

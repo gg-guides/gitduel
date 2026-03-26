@@ -157,7 +157,18 @@ function resultIssueBody(state: GameState): string {
         ? p1.username
         : p2.username
 
-  return `## Result
+  const block = `<!-- game-result
+winner: ${winner}
+player1: ${p1.username}
+player2: ${p2.username}
+score1: ${state.scores.player1}
+score2: ${state.scores.player2}
+gameId: ${state.gameId}
+-->`
+
+  return `${block}
+
+## Result
 
 - **Winner:** ${winner}
 - **Player 1:** ${p1.username}
