@@ -23,6 +23,9 @@ CONFIG.md
 registry/
 .github/
 
+# ── Claude Code commands ──────────────────────────────────────────────────────
+.claude/
+
 # ── OS & tooling ───────────────────────────────────────────────────────────────
 .DS_Store
 node_modules/
