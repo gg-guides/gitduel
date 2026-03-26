@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getIssuesByLabel, getFileContent, upsertFile } from '../src/github.ts'
+import { getIssuesByLabel } from '../src/github.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -171,23 +171,9 @@ async function main() {
   }
   saveRegistry(registry)
 
-  // Update LEADERBOARD.md via GitHub API (in Actions) or locally
+  // Always write locally — the git commit step in the workflow handles pushing
   const leaderboardContent = buildLeaderboard(registry.agents, totalGames)
-
-  if (process.env.GITHUB_ACTIONS) {
-    const existing = await getFileContent(REPO_OWNER, REPO_NAME, 'LEADERBOARD.md', TOKEN)
-    await upsertFile(
-      REPO_OWNER,
-      REPO_NAME,
-      'LEADERBOARD.md',
-      leaderboardContent,
-      'chore: update leaderboard [skip ci]',
-      TOKEN,
-      existing?.sha
-    )
-  } else {
-    writeFileSync(resolve(__dirname, '../LEADERBOARD.md'), leaderboardContent, 'utf-8')
-  }
+  writeFileSync(resolve(__dirname, '../LEADERBOARD.md'), leaderboardContent, 'utf-8')
 
   console.log(`Leaderboard updated. ${totalGames} games processed.`)
   console.log(leaderboardContent)

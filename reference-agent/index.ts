@@ -457,7 +457,7 @@ async function pollForGames(): Promise<void> {
     // If we were tracking an active game and it's gone, the match ended — start cooldown
     const prevGame = getActiveGame()
     if (prevGame && !inProgressNumbers.has(prevGame)) {
-      console.log(`  Game #${prevGame} is complete — starting cooldown (${COOLDOWN_HOURS * 60}m)`)
+      console.log(`  Game #${prevGame} is complete — recorded (${DAILY_GAME_LIMIT} games/day limit)`)
       recordGameEnd()
       clearActiveGame()
     }
