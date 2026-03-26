@@ -12,7 +12,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -59,7 +59,7 @@ const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? '30000')  // 3
 const WATCH_ISSUE = process.env.GITDUEL_WATCH_ISSUE ?? ''
 const BEST_OF = (process.env.GITDUEL_BEST_OF ?? '3') as '1' | '3'
 const MOVE_TIMEOUT = (process.env.GITDUEL_MOVE_TIMEOUT ?? '24h') as '6h' | '12h' | '24h'
-const COOLDOWN_HOURS = parseFloat(process.env.GITDUEL_COOLDOWN_HOURS ?? '1')
+const COOLDOWN_HOURS = parseFloat(process.env.GITDUEL_COOLDOWN_HOURS ?? '0.5')
 
 const REPO_OWNER = 'gg-guides'
 const REPO_NAME = 'gitduel'
@@ -85,6 +85,27 @@ function isCoolingDown(): boolean {
     return true
   }
   return false
+}
+
+// ── Open table tracking ───────────────────────────────────────────────────────
+
+function tableFile(): string {
+  return resolve(process.cwd(), `.gitduel-opentable-${AGENT_NAME}`)
+}
+
+function recordOpenTable(issueNumber: number): void {
+  writeFileSync(tableFile(), String(issueNumber), 'utf-8')
+}
+
+function getTrackedTable(): number | null {
+  const path = tableFile()
+  if (!existsSync(path)) return null
+  const n = parseInt(readFileSync(path, 'utf-8'))
+  return isNaN(n) ? null : n
+}
+
+function clearTrackedTable(): void {
+  try { unlinkSync(tableFile()) } catch {}
 }
 
 // ── Decision making ───────────────────────────────────────────────────────────
@@ -142,7 +163,8 @@ async function decide(state: GameState, myPlayer: 'player1' | 'player2'): Promis
 
 // ── Game logic ────────────────────────────────────────────────────────────────
 
-async function processIssue(owner: string, repo: string, issueNumber: number): Promise<void> {
+// Returns true if we are a player in this game (so caller knows to stop looking)
+async function processIssue(owner: string, repo: string, issueNumber: number): Promise<boolean> {
   const issue = await getIssue(owner, repo, issueNumber, GITHUB_TOKEN)
   const labels = issue.labels.map((l) => l.name)
 
@@ -155,12 +177,13 @@ agent: ${AGENT_NAME}
 
 **[${AGENT_NAME}]** sits down. Let's play. 🃏`
     await postComment(owner, repo, issueNumber, joinComment, GITHUB_TOKEN)
-    return
+    clearTrackedTable()
+    return true
   }
 
   if (!labels.includes('game:in-progress')) {
     console.log(`  Issue #${issueNumber} not in-progress, skipping`)
-    return
+    return false
   }
 
   // Load and parse game state
@@ -170,7 +193,7 @@ agent: ${AGENT_NAME}
 
   if (!state) {
     console.log(`  Could not parse game state from ${bodies.length} comments`)
-    return
+    return false
   }
 
   console.log(`  State: round ${state.round}, turn: ${state.turn}, p1: ${state.player1.username}, p2: ${state.player2.username}`)
@@ -180,7 +203,7 @@ agent: ${AGENT_NAME}
   const isPlayer2 = state.player2.username === AGENT_NAME
   if (!isPlayer1 && !isPlayer2) {
     console.log(`  ${AGENT_NAME} is not a player in this game`)
-    return
+    return false
   }
 
   const myPlayer = isPlayer1 ? 'player1' : 'player2'
@@ -188,13 +211,13 @@ agent: ${AGENT_NAME}
   // Is it our turn?
   if (state.turn !== myPlayer) {
     console.log(`  Not our turn yet (waiting for ${state[state.turn].username})`)
-    return
+    return true
   }
 
   // Are we already standing or busted?
   if (state[myPlayer].standing || state[myPlayer].busted) {
     console.log(`  Already standing or busted this round`)
-    return
+    return true
   }
 
   // Check we haven't already posted a move since the last dealer state update
@@ -211,7 +234,7 @@ agent: ${AGENT_NAME}
     const move = parseAgentMove(body)
     if (move?.agent === AGENT_NAME) {
       console.log('  Already posted a move this round — waiting for dealer response')
-      return
+      return true
     }
   }
 
@@ -230,6 +253,7 @@ agent: ${AGENT_NAME}
   await postComment(owner, repo, issueNumber, comment, GITHUB_TOKEN)
   console.log(`  Posted: ${action}`)
   recordGameEnd()
+  return true
 }
 
 async function createOpenTable(): Promise<void> {
@@ -247,7 +271,7 @@ async function createOpenTable(): Promise<void> {
 ${RULES_FALLBACK_BLOCK}`
 
   const { createIssue } = await import('../src/github.ts')
-  await createIssue(
+  const issueNumber = await createIssue(
     REPO_OWNER,
     REPO_NAME,
     `[OPEN TABLE] ${AGENT_NAME} is looking for a game`,
@@ -255,7 +279,8 @@ ${RULES_FALLBACK_BLOCK}`
     ['game:open'],
     GITHUB_TOKEN
   )
-  console.log('  Open table created.')
+  recordOpenTable(issueNumber)
+  console.log(`  Open table created: #${issueNumber}`)
 }
 
 async function isInActiveGame(): Promise<boolean> {
@@ -378,9 +403,10 @@ async function pollForGames(): Promise<void> {
     // Check cooldown first
     if (isCoolingDown()) return
 
-    // Fetch in-progress games we're part of
+    // Check ALL in-progress games — let processIssue determine if we're a player
+    // (can't rely on issue body containing our name since we may have joined, not hosted)
     const inProgressRes = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=20`,
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=game:in-progress&state=open&per_page=50`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -389,21 +415,25 @@ async function pollForGames(): Promise<void> {
         },
       }
     )
-    const inProgressIssues = (await inProgressRes.json()) as Array<{ number: number; body: string }>
-    const myGames = inProgressIssues.filter((i) => i.body?.includes(AGENT_NAME))
+    const inProgressIssues = (await inProgressRes.json()) as Array<{ number: number }>
 
-    // Process active games first
-    for (const issue of myGames) {
+    for (const issue of inProgressIssues) {
       console.log(`  Checking in-progress game #${issue.number}...`)
-      await processIssue(REPO_OWNER, REPO_NAME, issue.number)
+      const wasPlayer = await processIssue(REPO_OWNER, REPO_NAME, issue.number)
+      if (wasPlayer) return  // we're in this game, done for this poll
     }
 
-    if (myGames.length > 0) return
-
-    // No active game — look at open tables
+    // Not in any active game — check open tables
     const openTables = await fetchOpenTables()
     const joinableTables = openTables.filter((t) => t.host !== AGENT_NAME)
     const myTable = openTables.find((t) => t.host === AGENT_NAME)
+
+    // Also check local tracking in case GitHub API is slow to reflect new issue
+    const trackedTableNumber = getTrackedTable()
+    if (trackedTableNumber && !myTable) {
+      console.log(`  Waiting at locally-tracked table #${trackedTableNumber} for an opponent...`)
+      return
+    }
 
     if (joinableTables.length > 0 && !myTable) {
       // Choose which table to join
@@ -413,11 +443,13 @@ async function pollForGames(): Promise<void> {
         console.log(`  Joining table #${selected.number} (hosted by ${selected.host})`)
         await processIssue(REPO_OWNER, REPO_NAME, selected.number)
       }
-    } else if (!myTable) {
-      // No open tables and not in a game — create one
-      await createOpenTable()
-    } else {
+    } else if (myTable) {
       console.log(`  Waiting at table #${myTable.number} for an opponent...`)
+      // Sync local tracking with GitHub's confirmed state
+      recordOpenTable(myTable.number)
+    } else {
+      // No open tables at all — create one
+      await createOpenTable()
     }
 
   } catch (err) {
