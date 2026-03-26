@@ -18,9 +18,11 @@ import { fileURLToPath } from 'node:url'
 
 import { parseGameState, parseAgentMove } from '../src/state.ts'
 import { formatMove } from '../src/moves.ts'
-import { RULES_PROMPT, RULES_FALLBACK_BLOCK } from '../src/rules.ts'
+import { RULES_FALLBACK_BLOCK } from '../src/rules.ts'
+import { decide as defaultDecide } from '../src/decide.ts'
 import { getIssue, getComments, postComment, parseIssueUrl } from '../src/github.ts'
 import type { GameState } from '../src/state.ts'
+import type { Action } from '../src/decide.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -131,55 +133,38 @@ function clearActiveGame(): void {
 
 // ── Decision making ───────────────────────────────────────────────────────────
 
-function buildPrompt(state: GameState, myPlayer: 'player1' | 'player2'): string {
-  const me = state[myPlayer]
-  const opponent = myPlayer === 'player1' ? state.player2 : state.player1
-
-  return `${RULES_PROMPT}
-
-Current game state:
-- Round: ${state.round} of 3 (Score: ${state.player1.username} ${state.scores.player1} – ${state.scores.player2} ${state.player2.username})
-- Your total: ${me.total}
-- Opponent: ${opponent.standing ? `standing on ${opponent.total}` : `has ${opponent.total} and still drawing`}
-
-Respond with only one word: HIT or STAND`
-}
-
-async function decideWithApi(prompt: string): Promise<'HIT' | 'STAND'> {
-  const { default: Anthropic } = await import('@anthropic-ai/sdk')
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY })
-
-  const message = await client.messages.create({
-    model: 'claude-opus-4-6',
-    max_tokens: 10,
-    messages: [{ role: 'user', content: prompt }],
-  })
-
-  const text = (message.content[0] as { text: string }).text.trim().toUpperCase()
-  return text.includes('HIT') ? 'HIT' : 'STAND'
-}
-
-async function decideWithCli(prompt: string): Promise<'HIT' | 'STAND'> {
-  // Use the local claude CLI in non-interactive mode
-  const escaped = prompt.replace(/'/g, `'\\''`)
-  const result = execSync(`claude -p '${escaped}'`, {
-    encoding: 'utf-8',
-    timeout: 30000,
-  }).trim().toUpperCase()
-
-  return result.includes('HIT') ? 'HIT' : 'STAND'
-}
-
-async function decide(state: GameState, myPlayer: 'player1' | 'player2'): Promise<'HIT' | 'STAND'> {
-  const prompt = buildPrompt(state, myPlayer)
-
-  if (ANTHROPIC_API_KEY) {
-    console.log('  Deciding via Anthropic API...')
-    return decideWithApi(prompt)
-  } else {
-    console.log('  Deciding via local Claude CLI...')
-    return decideWithCli(prompt)
+// Looks for a gitduel.strategy.ts (or .js) in the project root.
+// If found, uses that. Otherwise falls back to the built-in Claude decide.
+async function loadStrategy(): Promise<((state: GameState, myPlayer: 'player1' | 'player2') => Promise<Action>) | null> {
+  const candidates = [
+    resolve(process.cwd(), 'gitduel.strategy.ts'),
+    resolve(process.cwd(), 'gitduel.strategy.js'),
+  ]
+  for (const path of candidates) {
+    if (existsSync(path)) {
+      console.log(`  Using strategy file: ${path}`)
+      const mod = await import(path)
+      return mod.default ?? mod.decide ?? null
+    }
   }
+  return null
+}
+
+let strategyFn: ((state: GameState, myPlayer: 'player1' | 'player2') => Promise<Action>) | null | undefined = undefined
+
+async function decide(state: GameState, myPlayer: 'player1' | 'player2'): Promise<Action> {
+  // Load strategy once on first call
+  if (strategyFn === undefined) {
+    strategyFn = await loadStrategy()
+  }
+
+  if (strategyFn) {
+    return strategyFn(state, myPlayer)
+  }
+
+  const mode = ANTHROPIC_API_KEY ? 'Anthropic API' : 'local Claude CLI'
+  console.log(`  Deciding via ${mode}...`)
+  return defaultDecide(state, myPlayer)
 }
 
 // ── Game logic ────────────────────────────────────────────────────────────────
