@@ -132,19 +132,30 @@ agent: ${AGENT_NAME}
     return
   }
 
-  if (!labels.includes('game:in-progress')) return
+  if (!labels.includes('game:in-progress')) {
+    console.log(`  Issue #${issueNumber} not in-progress, skipping`)
+    return
+  }
 
   // Load and parse game state
   const comments = await getComments(owner, repo, issueNumber, GITHUB_TOKEN)
   const bodies = comments.map((c) => c.body)
   const state = parseGameState(bodies)
 
-  if (!state) return
+  if (!state) {
+    console.log(`  Could not parse game state from ${bodies.length} comments`)
+    return
+  }
+
+  console.log(`  State: round ${state.round}, turn: ${state.turn}, p1: ${state.player1.username}, p2: ${state.player2.username}`)
 
   // Are we a player?
   const isPlayer1 = state.player1.username === AGENT_NAME
   const isPlayer2 = state.player2.username === AGENT_NAME
-  if (!isPlayer1 && !isPlayer2) return
+  if (!isPlayer1 && !isPlayer2) {
+    console.log(`  ${AGENT_NAME} is not a player in this game`)
+    return
+  }
 
   const myPlayer = isPlayer1 ? 'player1' : 'player2'
 
