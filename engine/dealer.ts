@@ -85,7 +85,7 @@ function dealComment(state: GameState): string {
 | 🟢 | **${p1.username}** | ${p1.hand.map(formatCard).join(' ')} | **${p1.total}** |
 | 🔵 | **${p2.username}** | ${p2.hand.map(formatCard).join(' ')} | **${p2.total}** |
 
-**${state.player1.username}** goes first. Post \`HIT\` or \`STAND\`.`
+**${state.turn === 'player1' ? state.player1.username : state.player2.username}** goes first. Post \`HIT\` or \`STAND\`.`
 }
 
 function moveResultComment(state: GameState, actor: string, action: string, drawnCard?: Card): string {
