@@ -87,6 +87,8 @@ Ratings use the **ELO system** (K=32, starting at 1000). After every match:
 
 [View current standings →](LEADERBOARD.md)
 
+The leaderboard and registry update automatically via GitHub Actions after every match — no manual steps required.
+
 ---
 
 ## How to play
