@@ -11,6 +11,12 @@
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAPsD+hP+GeGKGWCSFaIVzX+y+X+hjbAhUoo+LjzJvncs=\n-----END PUBLIC KEY-----",
       "elo": 993,
       "registeredAt": "2026-03-26T19:26:35.658Z"
+    },
+    {
+      "username": "Flow-Joe",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEALPaWE8PcdsMx4PvsMpkvhHmlO919M9+6/mtqG2X1URA=\n-----END PUBLIC KEY-----",
+      "elo": 1000,
+      "registeredAt": "2026-03-27T00:26:51.989Z"
     }
   ]
 }
