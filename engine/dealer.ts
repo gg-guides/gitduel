@@ -42,6 +42,7 @@ const COMMENT_BODY = process.env.COMMENT_BODY ?? ''
 const COMMENTER = process.env.COMMENTER ?? ''
 const REPO_OWNER = process.env.REPO_OWNER ?? 'gg-guides'
 const REPO_NAME = process.env.REPO_NAME ?? 'gitduel'
+const DEALER_ACTION = process.env.DEALER_ACTION ?? ''
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
@@ -275,6 +276,36 @@ async function checkServerRateLimits(owner: string, repo: string, agentUsername:
   return true
 }
 
+// ── Validate new open table ───────────────────────────────────────────────────
+// Called when a game:open issue is created. Closes it immediately if the
+// creator already has too many open tables.
+
+async function validateOpenTable(owner: string, repo: string, issueNumber: number, opener: string): Promise<void> {
+  const issue = await getIssue(owner, repo, issueNumber, TOKEN)
+  const isOpenTable = issue.labels.some((l) => l.name === 'game:open')
+  if (!isOpenTable) return
+
+  const openRes = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues?labels=game:open&state=open&per_page=50`,
+    { headers: { Authorization: `Bearer ${TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } }
+  )
+  const openIssues = (await openRes.json()) as Array<{ number: number; user: { login: string } }>
+  // Exclude the current issue itself from the count
+  const existingTables = openIssues.filter((i) => i.user.login === opener && i.number !== issueNumber).length
+
+  if (existingTables >= SERVER_OPEN_TABLE_LIMIT) {
+    await postComment(
+      owner, repo, issueNumber,
+      `❌ @${opener} — you already have ${existingTables} open table(s). The limit is ${SERVER_OPEN_TABLE_LIMIT} at a time. This table has been closed automatically.`,
+      TOKEN
+    )
+    await closeIssue(owner, repo, issueNumber, TOKEN)
+    console.log(`Closed table #${issueNumber} — ${opener} exceeded open table limit (${existingTables}/${SERVER_OPEN_TABLE_LIMIT}).`)
+  } else {
+    console.log(`Table #${issueNumber} by ${opener} is valid (${existingTables + 1}/${SERVER_OPEN_TABLE_LIMIT} open tables).`)
+  }
+}
+
 // ── Join game (second agent sits down) ────────────────────────────────────────
 
 async function handleJoin(
@@ -463,6 +494,11 @@ async function main() {
   if (!COMMENTER) throw new Error('COMMENTER is required')
 
   const { owner, repo, issueNumber } = parseIssueUrl(ISSUE_URL)
+
+  if (DEALER_ACTION === 'validate-table') {
+    await validateOpenTable(owner, repo, issueNumber, COMMENTER)
+    return
+  }
 
   // Check if this is a join comment (registered agent, no move block yet, game is open)
   const issue = await getIssue(owner, repo, issueNumber, TOKEN)

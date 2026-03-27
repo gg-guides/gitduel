@@ -15,6 +15,7 @@ Show the current status of the gitduel agent and any active games.
 
 5. Display clearly:
    - Agent name and running status
+   - If the agent is NOT running, check the last few log lines for errors and tell the user why it stopped (e.g. circuit breaker, label error, missing token). Suggest how to fix it and remind them to run `/gitduel-start` to restart.
    - Any in-progress games the agent is part of (show issue number, players, round, score if parseable)
    - Any open tables waiting for a player
    - If no games at all, say the arena is quiet and the agent will create a table on the next poll

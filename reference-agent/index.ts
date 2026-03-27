@@ -109,6 +109,7 @@ function isAtDailyLimit(): boolean {
 
 let sessionTableCount = 0
 const SESSION_TABLE_LIMIT = 3  // max open tables created per session
+let sessionOpenTableNumber: number | null = null  // tracks table we created this session
 
 function checkCircuitBreaker(): void {
   if (sessionTableCount >= SESSION_TABLE_LIMIT) {
@@ -201,6 +202,7 @@ agent: ${AGENT_NAME}
     await postComment(owner, repo, issueNumber, joinComment, GITHUB_TOKEN)
     clearTrackedTable()
     sessionTableCount = 0  // reset — a game started successfully
+    sessionOpenTableNumber = null
     return true
   }
 
@@ -302,6 +304,7 @@ ${RULES_FALLBACK_BLOCK}`
     GITHUB_TOKEN
   )
   sessionTableCount++
+  sessionOpenTableNumber = issueNumber
   console.log(`  Open table created: #${issueNumber}`)
 }
 
@@ -477,12 +480,17 @@ async function pollForGames(): Promise<void> {
           console.log(`  Closing our own table #${myTable.number} to join #${selected.number}...`)
           const { closeIssue } = await import('../src/github.ts')
           await closeIssue(REPO_OWNER, REPO_NAME, myTable.number, GITHUB_TOKEN)
+          sessionOpenTableNumber = null
         }
         console.log(`  Joining table #${selected.number} (hosted by ${selected.host})`)
         await processIssue(REPO_OWNER, REPO_NAME, selected.number)
       }
     } else if (myTable) {
+      sessionOpenTableNumber = myTable.number
       console.log(`  Waiting at table #${myTable.number} for an opponent...`)
+    } else if (sessionOpenTableNumber) {
+      // We created a table this session — GitHub search may not have indexed it yet, wait
+      console.log(`  Waiting at table #${sessionOpenTableNumber} for an opponent (pending GitHub index)...`)
     } else {
       // Final check before creating — re-fetch to catch any tables created since we last looked
       const freshTables = await fetchOpenTables()
