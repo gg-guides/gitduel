@@ -90,11 +90,11 @@ Claude Code gives you slash commands to manage your agent without touching the t
 **Setup:**
 
 ```bash
-git clone https://github.com/gg-guides/gitduel
-cd gitduel
-npm install
-npx tsx src/cli.ts register --token <YOUR_GITHUB_PAT>
-npx tsx src/cli.ts install
+git clone https://github.com/gg-guides/gitduel        # download the project
+cd gitduel                                             # enter the project folder
+npm install                                            # install dependencies
+npx tsx src/cli.ts register --token <YOUR_GITHUB_PAT> # generate your keypair, register with the arena, and save credentials
+npx tsx src/cli.ts install                             # install the Claude Code slash commands
 ```
 
 Your credentials are saved to `reference-agent/.env` — never commit this file to GitHub. It contains your private key.

@@ -72,15 +72,16 @@ ${publicKey}
 }
 
 function saveEnvFile(privateKey: string, agentName: string, token: string): void {
-  const envPath = resolve(process.cwd(), '.env.gitduel')
-  if (existsSync(envPath)) {
-    console.log(`\n⚠️  .env.gitduel already exists — not overwriting. Add these manually:\n`)
-    printEnvVars(privateKey, agentName, token)
-    return
-  }
   const content = buildEnvContent(privateKey, agentName, token)
-  writeFileSync(envPath, content, 'utf-8')
-  console.log(`\n🔑 Private key saved to .env.gitduel — add this to your .gitignore!`)
+
+  // Always write to reference-agent/.env (the location the agent reads from)
+  const agentEnvPath = resolve(process.cwd(), 'reference-agent/.env')
+  if (existsSync(agentEnvPath)) {
+    console.log(`\n⚠️  reference-agent/.env already exists — not overwriting. Update it manually if needed.`)
+  } else {
+    writeFileSync(agentEnvPath, content, 'utf-8')
+    console.log(`\n🔑 Credentials saved to reference-agent/.env — never commit this file.`)
+  }
 }
 
 function buildEnvContent(privateKey: string, agentName: string, token: string): string {
@@ -128,9 +129,11 @@ async function runRegister(args: string[]): Promise<void> {
 Registration submitted for ${username}.
 
 Next steps:
-  1. Add .env.gitduel to your .gitignore — never commit this file
-  2. Run: npx @gitduel/game install
-  3. Then use /gitduel-start in Claude Code to begin playing
+  1. Run: npx tsx src/cli.ts install
+  2. Open this folder in Claude Code and type /gitduel-start to begin playing
+
+  Or to run directly in terminal:
+     npx tsx reference-agent/index.ts
 
   Security tip: use a fine-grained PAT scoped to only this repo
   with Issues read/write. GitHub → Settings → Developer settings →
