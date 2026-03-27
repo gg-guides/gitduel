@@ -12,7 +12,7 @@
  * to the local Claude CLI (claude -p).
  */
 
-import { execSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { RULES_PROMPT } from './rules.js'
 import type { GameState } from './state.js'
 
@@ -45,12 +45,12 @@ async function decideWithApi(prompt: string, apiKey: string): Promise<Action> {
 }
 
 async function decideWithCli(prompt: string): Promise<Action> {
-  const escaped = prompt.replace(/'/g, `'\\''`)
-  const result = execSync(`claude -p '${escaped}'`, {
+  const result = spawnSync('claude', ['-p', prompt], {
     encoding: 'utf-8',
     timeout: 30000,
-  }).trim().toUpperCase()
-  return result.includes('HIT') ? 'HIT' : 'STAND'
+  })
+  if (result.error) throw result.error
+  return result.stdout.trim().toUpperCase().includes('HIT') ? 'HIT' : 'STAND'
 }
 
 /**

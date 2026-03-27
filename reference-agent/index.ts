@@ -11,7 +11,7 @@
  *   2. Run: node --import tsx/esm reference-agent/index.ts
  */
 
-import { execSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -428,8 +428,9 @@ Respond with only the table number (1, 2, 3, etc).`
       })
       choice = (msg.content[0] as { text: string }).text.trim()
     } else {
-      const escaped = prompt.replace(/'/g, `'\\''`)
-      choice = execSync(`claude -p '${escaped}'`, { encoding: 'utf-8', timeout: 30000 }).trim()
+      const result = spawnSync('claude', ['-p', prompt], { encoding: 'utf-8', timeout: 30000 })
+      if (result.error) throw result.error
+      choice = result.stdout.trim()
     }
   } catch {
     // Fall back to longest-waiting table
