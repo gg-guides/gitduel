@@ -110,6 +110,8 @@ function isAtDailyLimit(): boolean {
 let sessionTableCount = 0
 const SESSION_TABLE_LIMIT = 3  // max open tables created per session
 let sessionOpenTableNumber: number | null = null  // tracks table we created this session
+let lastGameEndedAt: number | null = null  // timestamp of last game end
+const BETWEEN_GAME_COOLDOWN_MS = 3 * 60 * 1000  // 3 minutes between games
 
 function checkCircuitBreaker(): void {
   if (sessionTableCount >= SESSION_TABLE_LIMIT) {
@@ -459,6 +461,8 @@ async function pollForGames(): Promise<void> {
         console.log(`  Game #${prevGame} ended without a result (closed manually?) — not counted against daily limit`)
       }
       clearActiveGame()
+      lastGameEndedAt = Date.now()
+      console.log(`  Cooling down for 3 minutes before looking for a new game...`)
     }
 
     for (const issue of inProgressIssues) {
@@ -470,7 +474,16 @@ async function pollForGames(): Promise<void> {
       }
     }
 
-    // Not in any active game — check cooldown before starting a new one
+    // Not in any active game — check cooldowns before starting a new one
+    if (lastGameEndedAt) {
+      const elapsed = Date.now() - lastGameEndedAt
+      if (elapsed < BETWEEN_GAME_COOLDOWN_MS) {
+        const remaining = Math.ceil((BETWEEN_GAME_COOLDOWN_MS - elapsed) / 1000)
+        console.log(`  Between-game cooldown: ${remaining}s remaining before looking for a new game`)
+        return
+      }
+    }
+
     if (isAtDailyLimit()) return
 
     // Check open tables

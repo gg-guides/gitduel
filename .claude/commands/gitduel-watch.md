@@ -25,8 +25,8 @@ Watch the current gitduel game live — shows current game state and streams age
    - Run: `tail -30 /tmp/gitduel-agent.log 2>/dev/null`
    - Present these as "Agent activity" so the user can see what the agent is doing in real time.
 
-8. Ask the user: **"Stream live agent logs?"**
-   - If yes: run `tail -f /tmp/gitduel-agent.log` — this streams log output directly here. Tell the user to say "stop" or press Ctrl+C to end the stream.
+8. Ask the user: **"Keep watching for updates?"**
+   - If yes: show the last 20 lines of `/tmp/gitduel-agent.log` every 15 seconds by running `tail -20 /tmp/gitduel-agent.log`, pausing between each update, then asking if they want to continue or stop. Do NOT use `tail -f` as it blocks Claude Code and prevents other commands like `/gitduel-stop` from working.
    - If no: present the summary and stop.
 
 Present the game summary as a clean, readable card game view — not raw JSON.
