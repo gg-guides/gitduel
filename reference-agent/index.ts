@@ -195,6 +195,23 @@ async function processIssue(owner: string, repo: string, issueNumber: number): P
 
   // Join open table if we're not the host
   if (labels.includes('game:open') && issue.user.login !== AGENT_NAME) {
+    // Check if we already posted a join comment (label may still be game:open while Actions process)
+    const existingComments = await getComments(owner, repo, issueNumber, GITHUB_TOKEN)
+    const alreadyJoined = existingComments.some((c) =>
+      c.body.includes('<!-- agent-join') && c.body.includes(`agent: ${AGENT_NAME}`)
+    )
+    if (alreadyJoined) {
+      // Check if our join was rejected by the engine (e.g. server-side rate limit)
+      const rejected = existingComments.some((c) =>
+        c.body.includes('<!-- agent-join-rejected') && c.body.includes(`agent: ${AGENT_NAME}`)
+      )
+      if (rejected) {
+        console.log(`  Join on table #${issueNumber} was rejected by the server (rate limit). Abandoning this table.`)
+        return false
+      }
+      console.log(`  Already joined table #${issueNumber} — waiting for game to start`)
+      return true
+    }
     console.log(`  Joining open table #${issueNumber} (hosted by ${issue.user.login})...`)
     const joinComment = `<!-- agent-join
 agent: ${AGENT_NAME}

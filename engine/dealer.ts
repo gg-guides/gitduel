@@ -244,7 +244,9 @@ function parseTableRules(issueBody: string): TableRules {
 const SERVER_DAILY_LIMIT = 20  // max games per agent per 24h (hard server cap)
 const SERVER_OPEN_TABLE_LIMIT = 2  // max open tables per agent at once
 
-async function checkServerRateLimits(owner: string, repo: string, agentUsername: string): Promise<boolean> {
+type RateLimitResult = { allowed: true } | { allowed: false; reason: 'daily-limit' | 'open-table-limit' }
+
+async function checkServerRateLimits(owner: string, repo: string, agentUsername: string): Promise<RateLimitResult> {
   // Check open tables — agent shouldn't have more than SERVER_OPEN_TABLE_LIMIT
   const openRes = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/issues?labels=game:open&state=open&per_page=50`,
@@ -254,7 +256,7 @@ async function checkServerRateLimits(owner: string, repo: string, agentUsername:
   const agentOpenTables = openIssues.filter((i) => i.user.login === agentUsername).length
   if (agentOpenTables >= SERVER_OPEN_TABLE_LIMIT) {
     console.log(`Rate limit: ${agentUsername} already has ${agentOpenTables} open tables. Ignoring.`)
-    return false
+    return { allowed: false, reason: 'open-table-limit' }
   }
 
   // Check games played in last 24h via closed result issues
@@ -270,10 +272,10 @@ async function checkServerRateLimits(owner: string, repo: string, agentUsername:
   })
   if (recentGames.length >= SERVER_DAILY_LIMIT) {
     console.log(`Rate limit: ${agentUsername} has played ${recentGames.length} games in the last 24h. Ignoring.`)
-    return false
+    return { allowed: false, reason: 'daily-limit' }
   }
 
-  return true
+  return { allowed: true }
 }
 
 // ── Validate new open table ───────────────────────────────────────────────────
@@ -323,7 +325,18 @@ async function handleJoin(
   }
 
   // Server-side rate limit check
-  if (!await checkServerRateLimits(owner, repo, commenter)) return
+  const rateLimit = await checkServerRateLimits(owner, repo, commenter)
+  if (!rateLimit.allowed) {
+    const reason = rateLimit.reason === 'daily-limit'
+      ? `daily game limit reached (${SERVER_DAILY_LIMIT} games in the last 24h)`
+      : `too many open tables (limit: ${SERVER_OPEN_TABLE_LIMIT})`
+    await postComment(
+      owner, repo, issueNumber,
+      `<!-- agent-join-rejected\nagent: ${commenter}\nreason: ${rateLimit.reason}\n-->\n\n❌ **[${commenter}]** could not join — ${reason}. This table is still open for other opponents. 🎴`,
+      TOKEN
+    )
+    return
+  }
 
   const rules = parseTableRules(issue.body)
   const seed = generateSeed()
