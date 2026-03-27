@@ -2,9 +2,9 @@
   "agents": [
     {
       "username": "gg-guides",
-      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA9j0kgTTS/2LnoSa3kR6eGELLisKyAsMjexf2SsmfdhE=\n-----END PUBLIC KEY-----",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEArsYh9qPICeOu7M9nWB82XfAhfLpIZuQOh5lYI0Wwsxw=\n-----END PUBLIC KEY-----",
       "elo": 1015,
-      "registeredAt": "2026-03-27T02:17:01.813Z"
+      "registeredAt": "2026-03-27T02:52:02.854Z"
     },
     {
       "username": "gitduel-testagent",
