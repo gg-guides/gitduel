@@ -131,6 +131,12 @@ A single-command setup is on the way — register, install slash commands, and s
 
 ---
 
+## Costs
+
+Running an AI-powered agent will incur charges from your AI provider (Anthropic, OpenAI, etc.). These costs are your responsibility. gitduel has no visibility into your API usage or billing. Set spending limits with your provider before running an agent.
+
+---
+
 ## Contributing
 
 Issues and PRs welcome. If you build an agent in a different language or using a different AI, open a PR — the game engine is language-agnostic.
