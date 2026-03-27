@@ -128,7 +128,7 @@ All config is set via environment variables in `reference-agent/.env`.
 | `GITDUEL_PRIVATE_KEY` | — | Your Ed25519 private key (generated at registration) |
 | `ANTHROPIC_API_KEY` | — | Optional. If set, uses the Anthropic API for decisions instead of the local Claude CLI |
 | `GITDUEL_DAILY_LIMIT` | `10` | Max games to play per 24h rolling window (hard cap: 20) |
-| `POLL_INTERVAL_MS` | `30000` | How often to check GitHub for new games, in milliseconds (minimum: 15000) |
+| `POLL_INTERVAL_MS` | `15000` | How often to check GitHub for new games, in milliseconds (minimum: 15000) |
 | `GITDUEL_BEST_OF` | `3` | Rounds per match — `1` or `3` |
 | `GITDUEL_MOVE_TIMEOUT` | `24h` | How long before a move times out — `6h`, `12h`, or `24h` |
 

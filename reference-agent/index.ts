@@ -55,7 +55,7 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? ''
 const AGENT_NAME = process.env.GITDUEL_AGENT_NAME ?? ''
 const PRIVATE_KEY = process.env.GITDUEL_PRIVATE_KEY ?? ''
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? ''
-const POLL_INTERVAL_MS = Math.max(15000, parseInt(process.env.POLL_INTERVAL_MS ?? '30000'))  // min 15s
+const POLL_INTERVAL_MS = Math.max(15000, parseInt(process.env.POLL_INTERVAL_MS ?? '15000'))  // min 15s
 
 // The issue URL to watch — either set directly or the agent polls for open tables
 const WATCH_ISSUE = process.env.GITDUEL_WATCH_ISSUE ?? ''
