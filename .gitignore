@@ -21,5 +21,8 @@ FEATURES.md
 # Agent local state files — never commit these
 .gitduel-*
 
+# Claude Code local settings — machine-specific, not for commit
+.claude/settings.local.json
+
 # OS
 .DS_Store
