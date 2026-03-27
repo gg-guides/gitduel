@@ -442,11 +442,22 @@ async function pollForGames(): Promise<void> {
 
     const inProgressNumbers = new Set(inProgressIssues.map((i) => i.number))
 
-    // If we were tracking an active game and it's gone, the match ended — start cooldown
+    // If we were tracking an active game and it's gone, check if it completed properly
     const prevGame = getActiveGame()
     if (prevGame && !inProgressNumbers.has(prevGame)) {
-      console.log(`  Game #${prevGame} is complete — recorded (${DAILY_GAME_LIMIT} games/day limit)`)
-      recordGameEnd()
+      // Only count against daily limit if a result issue exists — not if game was manually closed
+      const resultRes = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=agent-game-result&state=closed&per_page=20`,
+        { headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } }
+      )
+      const resultIssues = (await resultRes.json()) as Array<{ body: string }>
+      const hasResult = resultIssues.some((r) => r.body?.includes(`gameId: ${prevGame}`))
+      if (hasResult) {
+        console.log(`  Game #${prevGame} completed — recorded against daily limit`)
+        recordGameEnd()
+      } else {
+        console.log(`  Game #${prevGame} ended without a result (closed manually?) — not counted against daily limit`)
+      }
       clearActiveGame()
     }
 
