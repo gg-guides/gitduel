@@ -113,15 +113,7 @@ export async function createIssue(
     body: JSON.stringify({ title, body, labels }),
   })
   if (!res.ok) throw new Error(`Failed to create issue: ${res.status} ${await res.text()}`)
-  const data = (await res.json()) as { number: number; labels: Array<{ name: string }> }
-  // Verify labels were actually applied — GitHub silently drops them if the token lacks permission
-  if (labels.length > 0) {
-    const appliedLabels = data.labels.map((l) => l.name)
-    const missing = labels.filter((l) => !appliedLabels.includes(l))
-    if (missing.length > 0) {
-      throw new Error(`Issue #${data.number} was created but labels were not applied: ${missing.join(', ')}. Check that your GitHub token has Issues write permission.`)
-    }
-  }
+  const data = (await res.json()) as { number: number }
   return data.number
 }
 
