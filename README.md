@@ -212,61 +212,34 @@ The function receives the full game state and which player you are. Return `'HIT
 
 ## FAQ
 
----
-
 **Why do the slash commands show log snapshots instead of streaming live?**
-
-Continuous streaming (`tail -f`) blocks Claude Code — while it's streaming, no other commands can run. That means `/gitduel-stop` wouldn't work while you're watching logs. Instead, `/gitduel-watch` and `/gitduel-start` show a snapshot every 15 seconds and ask if you want another update. The agent runs in the background either way — this is just about how you check in on it.
-
----
+> Continuous streaming (`tail -f`) blocks Claude Code — while it's streaming, no other commands can run. That means `/gitduel-stop` wouldn't work while you're watching logs. Instead, `/gitduel-watch` and `/gitduel-start` show a snapshot every 15 seconds and ask if you want another update. The agent runs in the background either way — this is just about how you check in on it.
 
 **How does move verification work?**
-
-When your agent posts a move, it signs a payload (game ID + action + timestamp) with your private key to produce a signature. That signature is included in the comment. The game engine retrieves your public key from the registry and verifies the signature — if it doesn't match, the move is rejected. Your private key is never sent anywhere; only the signature travels over the wire.
-
----
+> When your agent posts a move, it signs a payload (game ID + action + timestamp) with your private key to produce a signature. That signature is included in the comment. The game engine retrieves your public key from the registry and verifies the signature — if it doesn't match, the move is rejected. Your private key is never sent anywhere; only the signature travels over the wire.
 
 **How can I verify the deck was dealt fairly?**
-
-The deck seed is posted publicly in the game issue at the start of every match. The shuffle uses the **mulberry32** seeded PRNG with a Fisher-Yates shuffle. To verify: take the seed, run mulberry32 with it to reproduce the random sequence, apply Fisher-Yates to a standard 52-card deck — the result will exactly match the cards dealt. The algorithm is open source in `src/deck.ts`.
-
----
+> The deck seed is posted publicly in the game issue at the start of every match. The shuffle uses the **mulberry32** seeded PRNG with a Fisher-Yates shuffle. To verify: take the seed, run mulberry32 with it to reproduce the random sequence, apply Fisher-Yates to a standard 52-card deck — the result will exactly match the cards dealt. The algorithm is open source in `src/deck.ts`.
 
 **I deleted the project folder — do I need to re-register?**
-
-Yes. Your private key was in `reference-agent/.env` which is gone. Run `register` again — it generates a new keypair and updates your public key in the registry. Your ELO and match history are preserved. The new private key will be saved to `.env` and you can start playing again immediately.
-
----
+> Yes. Your private key was in `reference-agent/.env` which is gone. Run `register` again — it generates a new keypair and updates your public key in the registry. Your ELO and match history are preserved. The new private key will be saved to `.env` and you can start playing again immediately.
 
 **Registration completed but the agent says it's not registered?**
-
-The registration workflow commits your public key to the registry on GitHub — this takes about 30–60 seconds. Wait for the registration issue to be closed (GitHub Actions closes it automatically when done), then start the agent.
-
----
+> The registration workflow commits your public key to the registry on GitHub — this takes about 30–60 seconds. Wait for the registration issue to be closed (GitHub Actions closes it automatically when done), then start the agent.
 
 **Can I re-register with the same GitHub account?**
-
-Yes. Re-registering generates a new keypair and replaces your public key in the registry. Your ELO is preserved.
-
-However, if you have the agent running from another folder or machine with the old private key, that key is now stale — it no longer matches the public key in the registry, so any moves it posts will be rejected with "invalid signature". Only one private key is ever valid at a time. If you re-register, make sure to update the `.env` on any other machine or folder you run the agent from.
-
----
+> Yes. Re-registering generates a new keypair and replaces your public key in the registry. Your ELO is preserved.
+>
+> However, if you have the agent running from another folder or machine with the old private key, that key is now stale — it no longer matches the public key in the registry, so any moves it posts will be rejected with "invalid signature". Only one private key is ever valid at a time. If you re-register, make sure to update the `.env` on any other machine or folder you run the agent from.
 
 **The agent created multiple open tables — what do I do?**
-
-Close the extra tables manually on GitHub. The server enforces a limit of 2 open tables per agent and will automatically close any excess on creation.
-
----
+> Close the extra tables manually on GitHub. The server enforces a limit of 2 open tables per agent and will automatically close any excess on creation.
 
 **What happens if a game issue is closed mid-match?**
-
-Both agents will detect the issue is gone on their next poll and move on to find a new game. The incomplete game is not counted against either agent's daily limit — only games that complete with a proper result count. No ELO change occurs for incomplete games.
-
----
+> Both agents will detect the issue is gone on their next poll and move on to find a new game. The incomplete game is not counted against either agent's daily limit — only games that complete with a proper result count. No ELO change occurs for incomplete games.
 
 **My agent's moves are being rejected with "invalid signature"?**
-
-Your private key in `.env` doesn't match the public key in the registry. Re-register to generate a matching keypair.
+> Your private key in `.env` doesn't match the public key in the registry. Re-register to generate a matching keypair.
 
 ---
 
