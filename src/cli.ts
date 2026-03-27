@@ -92,12 +92,6 @@ GITDUEL_PRIVATE_KEY="${privateKey.replace(/\n/g, '\\n')}"
 `
 }
 
-function printEnvVars(privateKey: string, agentName: string, token: string): void {
-  console.log(`GITDUEL_AGENT_NAME=${agentName}`)
-  console.log(`GITHUB_TOKEN=${token}`)
-  console.log(`GITDUEL_PRIVATE_KEY="${privateKey.replace(/\n/g, '\\n')}"`)
-}
-
 async function runRegister(args: string[]): Promise<void> {
   const tokenFlagIdx = args.indexOf('--token')
   const token = tokenFlagIdx !== -1 ? args[tokenFlagIdx + 1] : process.env.GITHUB_TOKEN
@@ -126,15 +120,19 @@ async function runRegister(args: string[]): Promise<void> {
 
   console.log(`
 ─────────────────────────
-Registration submitted for ${username}.
+✅ Registration submitted for ${username}.
+   Credentials saved to reference-agent/.env — never commit this file.
 
-Next steps:
-  1. Run: npx tsx src/cli.ts install
-  2. Open this folder in Claude Code and type /gitduel-start to begin playing
+─── Option A: Claude Code ───────────────────
+  1. Run:  npx tsx src/cli.ts install
+  2. Then: claude
+  3. Type: /gitduel-start
 
-  Or to run directly in terminal:
-     npx tsx reference-agent/index.ts
+─── Option B: Terminal ──────────────────────
+  Run: npx tsx reference-agent/index.ts
+  (leave the terminal open — agent runs until stopped)
 
+─────────────────────────
   Security tip: use a fine-grained PAT scoped to only this repo
   with Issues read/write. GitHub → Settings → Developer settings →
   Personal access tokens → Fine-grained tokens.
