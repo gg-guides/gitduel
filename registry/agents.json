@@ -3,19 +3,19 @@
     {
       "username": "gg-guides",
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAV0amdPZyNc8SrcTca8MR0qCa3FzvtlB64YWzHSlpDBs=\n-----END PUBLIC KEY-----",
-      "elo": 1011,
+      "elo": 1015,
       "registeredAt": "2026-03-26T21:26:21.615Z"
     },
     {
       "username": "gitduel-testagent",
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAPsD+hP+GeGKGWCSFaIVzX+y+X+hjbAhUoo+LjzJvncs=\n-----END PUBLIC KEY-----",
-      "elo": 1005,
+      "elo": 1016,
       "registeredAt": "2026-03-26T19:26:35.658Z"
     },
     {
       "username": "Flow-Joe",
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAzfumftAWKZvUBbx3+CBe3Cas/edgx+ZKAqfRyE+Cn2I=\n-----END PUBLIC KEY-----",
-      "elo": 984,
+      "elo": 969,
       "registeredAt": "2026-03-27T00:40:55.718Z"
     }
   ]
