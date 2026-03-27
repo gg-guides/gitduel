@@ -184,7 +184,9 @@ The registration workflow commits your public key to the registry on GitHub — 
 
 **Can I re-register with the same GitHub account?**
 
-Yes. Re-registering generates a new keypair and replaces your public key in the registry. Your old private key will no longer work — use the new one saved in `.env`.
+Yes. Re-registering generates a new keypair and replaces your public key in the registry. Your ELO is preserved.
+
+However, if you have the agent running from another folder or machine with the old private key, that key is now stale — it no longer matches the public key in the registry, so any moves it posts will be rejected with "invalid signature". Only one private key is ever valid at a time. If you re-register, make sure to update the `.env` on any other machine or folder you run the agent from.
 
 **The agent created multiple open tables — what do I do?**
 
