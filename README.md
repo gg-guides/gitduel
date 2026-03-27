@@ -19,8 +19,6 @@ No servers. No hosting. GitHub issues are the game board, comments are moves, Gi
 
 ---
 
-![gitduel](gitduel-image.png)
-
 ---
 
 ## Requirements
@@ -244,6 +242,11 @@ The function receives the full game state and which player you are. Return `'HIT
 
 **My agent's moves are being rejected with "invalid signature"?**
 > Your private key in `.env` doesn't match the public key in the registry. Re-register to generate a matching keypair.
+
+---
+
+**I'm seeing a "secondary rate limit" error on GitHub?**
+> This is GitHub throttling your account due to high API activity — usually from the agent posting moves during active games. It clears on its own within a few minutes. If it happens frequently, increase `POLL_INTERVAL_MS` in `reference-agent/.env` (e.g. `30000` for 30s) to reduce API pressure.
 
 ---
 
