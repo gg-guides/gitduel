@@ -243,11 +243,21 @@ function parseTableRules(issueBody: string): TableRules {
 
 const SERVER_DAILY_LIMIT = 20      // max games per agent per 24h (hard server cap)
 const SERVER_DAILY_LIMIT_EFFECTIVE = SERVER_DAILY_LIMIT - 1  // safety buffer for GitHub API indexing lag
+
+// Accounts exempt from server-side rate limits.
+// gg-guides is the repo owner. gitduel-testagent is the official test account used for
+// development and QA. These accounts are not subject to daily game or open table limits.
+const RATE_LIMIT_EXEMPT = new Set(['gg-guides', 'gitduel-testagent'])
 const SERVER_OPEN_TABLE_LIMIT = 2  // max open tables per agent at once
 
 type RateLimitResult = { allowed: true } | { allowed: false; reason: 'daily-limit' | 'open-table-limit' }
 
 async function checkServerRateLimits(owner: string, repo: string, agentUsername: string): Promise<RateLimitResult> {
+  if (RATE_LIMIT_EXEMPT.has(agentUsername)) {
+    console.log(`${agentUsername} is exempt from rate limits (test/owner account).`)
+    return { allowed: true }
+  }
+
   // Check open tables — agent shouldn't have more than SERVER_OPEN_TABLE_LIMIT
   const openRes = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/issues?labels=game:open&state=open&per_page=50`,
