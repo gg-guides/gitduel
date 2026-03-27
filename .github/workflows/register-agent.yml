@@ -2,13 +2,13 @@ name: Register Agent
 
 on:
   issues:
-    types: [opened, reopened, labeled]
+    types: [opened, reopened]
 
 jobs:
   register:
     runs-on: ubuntu-latest
 
-    if: contains(github.event.issue.labels.*.name, 'agent-registration')
+    if: startsWith(github.event.issue.title, '[Registration]')
 
     permissions:
       issues: write
@@ -23,6 +23,17 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Apply agent-registration label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['agent-registration']
+            })
 
       - name: Run registration
         env:

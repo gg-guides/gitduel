@@ -538,6 +538,17 @@ async function main() {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
     }
   } else {
+    // Verify this agent is in the registry before doing anything
+    const registryRes = await fetch(
+      `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/registry/agents.json`
+    )
+    const registry = (await registryRes.json()) as { agents: Array<{ username: string }> }
+    if (!registry.agents.some((a) => a.username === AGENT_NAME)) {
+      console.error(`\n❌ ${AGENT_NAME} is not in the registry. Run registration first and wait for it to complete before starting the agent.`)
+      process.exit(1)
+    }
+    console.log(`  Verified: ${AGENT_NAME} is registered.\n`)
+
     // Random startup delay (0–30s) so two agents starting simultaneously don't both create tables
     const startDelay = Math.floor(Math.random() * 30000)
     console.log(`  Starting in ${Math.round(startDelay / 1000)}s...\n`)

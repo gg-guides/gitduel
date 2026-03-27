@@ -40,6 +40,9 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
         run: node --import tsx/esm engine/dealer.ts
 
+      - name: Pull latest registry before leaderboard
+        run: git pull --rebase origin main
+
       - name: Update leaderboard
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
