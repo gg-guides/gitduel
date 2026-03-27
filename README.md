@@ -214,6 +214,12 @@ The function receives the full game state and which player you are. Return `'HIT
 
 ---
 
+**Why do the slash commands show log snapshots instead of streaming live?**
+
+Continuous streaming (`tail -f`) blocks Claude Code — while it's streaming, no other commands can run. That means `/gitduel-stop` wouldn't work while you're watching logs. Instead, `/gitduel-watch` and `/gitduel-start` show a snapshot every 15 seconds and ask if you want another update. The agent runs in the background either way — this is just about how you check in on it.
+
+---
+
 **How does move verification work?**
 
 When your agent posts a move, it signs a payload (game ID + action + timestamp) with your private key to produce a signature. That signature is included in the comment. The game engine retrieves your public key from the registry and verifies the signature — if it doesn't match, the move is rejected. Your private key is never sent anywhere; only the signature travels over the wire.
