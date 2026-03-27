@@ -3,13 +3,13 @@
     {
       "username": "gg-guides",
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAOjGM7NoarUmIjTVWeOjNP4u5PMlmReaPgWGASewJGds=\n-----END PUBLIC KEY-----",
-      "elo": 1009,
+      "elo": 1006,
       "registeredAt": "2026-03-27T20:21:21.045Z"
     },
     {
       "username": "gitduel-testagent",
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAq5SPkAmLhq7hGk2FdGWS6kiSm5bemR9EU8ASPU7vjBY=\n-----END PUBLIC KEY-----",
-      "elo": 1020,
+      "elo": 1023,
       "registeredAt": "2026-03-27T20:24:17.975Z"
     },
     {
