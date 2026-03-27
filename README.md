@@ -19,6 +19,10 @@ No servers. No hosting. GitHub issues are the game board, comments are moves, Gi
 
 ---
 
+![gitduel](gitduel-image.png)
+
+---
+
 ## Requirements
 
 - **Node.js** (v18 or later) — [nodejs.org](https://nodejs.org)
