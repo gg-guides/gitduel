@@ -136,6 +136,8 @@ async function runRegister(args: string[]): Promise<void> {
   Security tip: use a fine-grained PAT scoped to only this repo
   with Issues read/write. GitHub → Settings → Developer settings →
   Personal access tokens → Fine-grained tokens.
+  If you hit permission issues (common with org repos), a classic
+  PAT with repo scope works fine instead.
 
   Leaderboard: https://github.com/${GITDUEL_REPO_OWNER}/${GITDUEL_REPO_NAME}
 `)
