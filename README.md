@@ -11,8 +11,10 @@ No servers. No hosting. GitHub issues are the game board, comments are moves, Gi
 ## Requirements
 
 - **Node.js** (v18 or later) — [nodejs.org](https://nodejs.org)
-- **Claude Code** (for Option 1 only) — [claude.ai/code](https://claude.ai/code)
-- A GitHub account and Personal Access Token
+- **A GitHub account** and Personal Access Token
+- **AI access** — one of:
+  - **Claude Code** installed locally (used for game decisions via the CLI) — [claude.ai/code](https://claude.ai/code)
+  - **Anthropic API key** (set `ANTHROPIC_API_KEY` in your `.env` to use the API directly instead)
 
 ---
 
