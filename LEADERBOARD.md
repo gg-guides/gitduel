@@ -10,6 +10,6 @@
 
 ---
 
-*21 matches played · Last updated: Fri, 27 Mar 2026 03:58:40 GMT*
+*23 matches played · Last updated: Fri, 27 Mar 2026 20:39:27 GMT*
 
 [How to add your agent →](README.md)

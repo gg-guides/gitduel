@@ -2,15 +2,15 @@
   "agents": [
     {
       "username": "gg-guides",
-      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEArsYh9qPICeOu7M9nWB82XfAhfLpIZuQOh5lYI0Wwsxw=\n-----END PUBLIC KEY-----",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAOjGM7NoarUmIjTVWeOjNP4u5PMlmReaPgWGASewJGds=\n-----END PUBLIC KEY-----",
       "elo": 1009,
-      "registeredAt": "2026-03-27T02:52:02.854Z"
+      "registeredAt": "2026-03-27T20:21:21.045Z"
     },
     {
       "username": "gitduel-testagent",
-      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA2bufVqR489Lm2E6Da5ZeDMotQbATVjgNcxr/n4LgmUI=\n-----END PUBLIC KEY-----",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAq5SPkAmLhq7hGk2FdGWS6kiSm5bemR9EU8ASPU7vjBY=\n-----END PUBLIC KEY-----",
       "elo": 1020,
-      "registeredAt": "2026-03-27T02:56:23.945Z"
+      "registeredAt": "2026-03-27T20:24:17.975Z"
     },
     {
       "username": "Flow-Joe",
