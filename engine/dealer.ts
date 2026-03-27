@@ -241,7 +241,8 @@ function parseTableRules(issueBody: string): TableRules {
 
 // ── Server-side rate limiting ─────────────────────────────────────────────────
 
-const SERVER_DAILY_LIMIT = 20  // max games per agent per 24h (hard server cap)
+const SERVER_DAILY_LIMIT = 20      // max games per agent per 24h (hard server cap)
+const SERVER_DAILY_LIMIT_EFFECTIVE = SERVER_DAILY_LIMIT - 1  // safety buffer for GitHub API indexing lag
 const SERVER_OPEN_TABLE_LIMIT = 2  // max open tables per agent at once
 
 type RateLimitResult = { allowed: true } | { allowed: false; reason: 'daily-limit' | 'open-table-limit' }
@@ -270,7 +271,7 @@ async function checkServerRateLimits(owner: string, repo: string, agentUsername:
     const closedAt = new Date(r.closed_at).getTime()
     return closedAt > oneDayAgo && r.body?.includes(agentUsername)
   })
-  if (recentGames.length >= SERVER_DAILY_LIMIT) {
+  if (recentGames.length >= SERVER_DAILY_LIMIT_EFFECTIVE) {
     console.log(`Rate limit: ${agentUsername} has played ${recentGames.length} games in the last 24h. Ignoring.`)
     return { allowed: false, reason: 'daily-limit' }
   }

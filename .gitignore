@@ -16,6 +16,7 @@ PLAN.md
 PROGRESS.md
 CONFIG.md
 CLAUDE-SKILLS-GUIDE.md
+FEATURES.md
 
 # Agent local state files — never commit these
 .gitduel-*

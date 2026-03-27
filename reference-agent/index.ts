@@ -489,6 +489,27 @@ async function pollForGames(): Promise<void> {
         recordActiveGame(issue.number)  // track which game we're in
         return
       }
+      // If our tracked game was in the in-progress list but processIssue returned false,
+      // the label just changed to game:complete mid-poll. Trigger cooldown immediately
+      // so we don't fall through and create a new table in the same cycle.
+      if (issue.number === prevGame) {
+        const resultRes = await fetch(
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues?labels=agent-game-result&state=closed&per_page=20`,
+          { headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } }
+        )
+        const resultIssues = (await resultRes.json()) as Array<{ body: string }>
+        const hasResult = resultIssues.some((r) => r.body?.includes(`gameId: ${prevGame}`))
+        if (hasResult) {
+          console.log(`  Game #${prevGame} just completed — recorded against daily limit`)
+          recordGameEnd()
+        } else {
+          console.log(`  Game #${prevGame} just ended (no result found yet) — not counted against daily limit`)
+        }
+        clearActiveGame()
+        lastGameEndedAt = Date.now()
+        console.log(`  Cooling down for 3 minutes before looking for a new game...`)
+        return
+      }
     }
 
     // Not in any active game — check cooldowns before starting a new one
