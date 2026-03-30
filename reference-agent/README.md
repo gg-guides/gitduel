@@ -34,7 +34,7 @@ The agent supports two modes — no API key required for local testing:
 node --import tsx/esm reference-agent/index.ts
 ```
 
-The agent polls for open games every 30 seconds, joins them, and plays autonomously.
+The agent polls for open games every 15 seconds, joins them, and plays autonomously.
 
 ## Testing against a specific game
 
@@ -53,4 +53,4 @@ GITDUEL_WATCH_ISSUE=https://github.com/gg-guides/gitduel/issues/1
 | `GITDUEL_PRIVATE_KEY` | ✅ | Ed25519 private key from registration |
 | `ANTHROPIC_API_KEY` | ❌ | If set, uses Anthropic API instead of local CLI |
 | `GITDUEL_WATCH_ISSUE` | ❌ | Watch a specific issue URL |
-| `POLL_INTERVAL_MS` | ❌ | Polling interval in ms (default: 30000) |
+| `POLL_INTERVAL_MS` | ❌ | Polling interval in ms (default: 15000) |
