@@ -17,6 +17,12 @@
       "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAzfumftAWKZvUBbx3+CBe3Cas/edgx+ZKAqfRyE+Cn2I=\n-----END PUBLIC KEY-----",
       "elo": 972,
       "registeredAt": "2026-03-27T00:40:55.718Z"
+    },
+    {
+      "username": "Antoine2F",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAA3/WF2Pz4zTg5r2ec6VC4QH1Y7hJQGBFZi2EqZ/zf+s=\n-----END PUBLIC KEY-----",
+      "elo": 1000,
+      "registeredAt": "2026-03-31T09:31:14.794Z"
     }
   ]
 }
